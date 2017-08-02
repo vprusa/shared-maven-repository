@@ -33,12 +33,12 @@ public class MasterMavenRepository {
 		return instance;
 	}
 	
-	public void uploadRepository(FilePath repositoryZip, TaskListener listener) throws IOException, InterruptedException {
+	public void uploadRepository(FilePath repositoryTar, TaskListener listener) throws IOException, InterruptedException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if(jenkins != null) {
-			listener.getLogger().println("Upload "+repositoryZip.absolutize().toURI()+" to Jenkins master");
-			FilePath masterRepo = new FilePath(new File(repositoriesDir, repositoryZip.getName()));
-			repositoryZip.copyTo(masterRepo);
+			listener.getLogger().println("Upload "+repositoryTar.absolutize().toURI()+" to Jenkins master");
+			FilePath masterRepo = new FilePath(new File(repositoriesDir, repositoryTar.getName()));
+			repositoryTar.copyTo(masterRepo);
 			setLatestRepoFile(masterRepo);
 			listener.getLogger().println("Repository uploaded to "+masterRepo.absolutize().toURI());
 			deleteOldRepositories(listener);

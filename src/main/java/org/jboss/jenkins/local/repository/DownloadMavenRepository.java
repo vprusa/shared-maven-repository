@@ -8,6 +8,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.FilePath.TarCompression;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -30,12 +31,12 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 		Jenkins jenkins = Jenkins.getInstance();
 		if(jenkins != null) {
 			listener.getLogger().println("Download maven repository from Jenkins master");
-			FilePath jobRepo = new FilePath(workspace,"repository.zip");
+			FilePath jobRepo = new FilePath(workspace,"repository.tar");
 			if(jobRepo.exists()) {
-				listener.getLogger().println("repository.zip already exists, delete.");
+				listener.getLogger().println("repository.tar already exists, delete.");
 				boolean deleted = jobRepo.delete();
 				if(!deleted) {
-					listener.error("Unable to delete repository.zip");
+					listener.error("Unable to delete repository.tar");
 				}
 			}
 			FilePath repoFile = MasterMavenRepository.getInstance().getLatestRepo();
@@ -44,8 +45,8 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 				return;
 			}
 			repoFile.copyTo(jobRepo);
-			jobRepo.unzip(workspace);
-			listener.getLogger().println("Jenkins master repository unzipped.");
+			jobRepo.untar(workspace, TarCompression.NONE);
+			listener.getLogger().println("Jenkins master repository untarred.");
 		}
 		
 	}
