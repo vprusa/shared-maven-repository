@@ -14,6 +14,7 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
+import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
@@ -36,6 +37,11 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
+			Result buildResult = build.getResult();
+			if(buildResult != null && buildResult.isWorseThan(Result.FAILURE)) {
+				listener.getLogger().println("Build ended with worse than FAILURE. Maven repository wont be archived");
+				return;
+			}
 			listener.getLogger().println("Archive private maven repository");
 			List<FilePath> files = workspace.list();
 			File f = new File(workspace.absolutize().toURI());
