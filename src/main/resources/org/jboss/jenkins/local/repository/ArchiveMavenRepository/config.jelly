@@ -1,0 +1,14 @@
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <f:entry field="useLabel" title="Use label">
+   <f:select/>
+  </f:entry>
+  <!--
+  <f:entry field="removeSelected" title="Remove selected label">
+   	  <input type="button" value="-"/>
+  	</f:entry>  
+  <f:entry field="addNew" title="Add new label">
+   <input type="text" />
+   <input type="button" value="+"/>
+  </f:entry>  
+  -->
+</j:jelly>

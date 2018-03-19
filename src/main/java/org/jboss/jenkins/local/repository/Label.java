@@ -2,6 +2,7 @@ package org.jboss.jenkins.local.repository;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -17,10 +18,13 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.jfree.util.Log;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
+import net.sf.json.JSONObject;
+//import net.sf.json.;
+//import org.json.simple.JSONObject;
+//import org.json.simple.parser.JSONParser;
+//import org.json.simple.parser.ParseException;
+import net.sf.json.JSONSerializer;
 import jenkins.model.Jenkins;
 
 public class Label {
@@ -42,11 +46,12 @@ public class Label {
 	}
 
 	public static List<Label> getListInstances() {
+		// TODO: do not always override
+		// return (labelsStatic == null ? (labelsStatic = (ArrayList<Label>)
+		// loadFromFile()) : labelsStatic);
 		try {
-			// TODO: do not always override
-			//return (labelsStatic == null ? (labelsStatic = (ArrayList<Label>) loadFromFile()) : labelsStatic);
 			return labelsStatic = (ArrayList<Label>) loadFromFile();
-		} catch (IOException | ParseException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return Collections.emptyList();
@@ -81,7 +86,12 @@ public class Label {
 		return sb.toString();
 	}
 
-	private static List<Label> loadFromFile() throws IOException, ParseException {
+	public static String getCurrentLabel() {
+
+		return "default";
+	}
+
+	private static List<Label> loadFromFile() throws IOException {
 		if (labelsPath.isEmpty()) {
 			System.out.println("Jenkins.getInstance().getRootDir(): " + Jenkins.getInstance().getRootDir());
 			File configFile = new File(
@@ -108,10 +118,10 @@ public class Label {
 			labelsPath = configFile.getAbsolutePath();
 			System.out.println("labelsPath: " + labelsPath);
 		}
-		// try {
-		JSONParser parser = new JSONParser();
 		System.out.println("JSONParser.labelsPath: " + labelsPath);
-		labels = (JSONObject) parser.parse(new FileReader(labelsPath));
+		InputStream is = new FileInputStream(new File(labelsPath));
+
+		labels = (JSONObject) JSONSerializer.toJSON(IOUtils.toString(is));
 
 		List<Label> l = new ArrayList<Label>();
 

@@ -3,7 +3,6 @@ package org.jboss.jenkins.local.repository;
 import java.io.IOException;
 import java.util.stream.Collectors;
 
-import org.json.simple.parser.ParseException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -57,6 +56,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 	@Extension 
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
+		
         /**
          * In order to load the persisted global configuration, you have to 
          * call load() in the constructor.

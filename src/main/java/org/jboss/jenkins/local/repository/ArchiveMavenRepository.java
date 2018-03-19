@@ -8,7 +8,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import javax.servlet.ServletException;
+
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import hudson.Extension;
@@ -22,6 +25,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
+import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
@@ -85,6 +89,12 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements Serializable{
 
+		private String usedLabel;
+
+		public String getUsedLabel() {
+			return usedLabel;
+		}
+
 		/**
 		 * 
 		 */
@@ -105,8 +115,27 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 			return "archive repository";
 		}
 
+		  /*
+         * Performs on-the-fly validation of the form field 'name'.
+         *
+         * @param value This parameter receives the value that the user has typed.
+         * @return Indicates the outcome of the validation. This is sent to the browser.
+         * <p/>
+         * Note that returning {@link FormValidation#error(String)} does not
+         * prevent the form from being saved. It just means that a message
+         * will be displayed to the user.
+         */
+       /* public FormValidation doCheckUsedLabel(@QueryParameter String value)
+                throws IOException, ServletException {
+            if (value.isEmpty())
+                return FormValidation.warning("Cannot be empty");
+            // TODO check Label existence
+            return FormValidation.ok();
+        }*/
+		
 		@Override
 		public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+			usedLabel = formData.getString("usedLabel");
 			save();
 			return super.configure(req, formData);
 		}
@@ -115,6 +144,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 		public boolean isApplicable(Class<? extends AbstractProject> arg0) {
 			return true;
 		}
+		
 	}
 
 }
