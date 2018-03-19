@@ -25,10 +25,11 @@ import jenkins.model.Jenkins;
 
 public class Label {
 
+	private static ArrayList<Label> labelsStatic;
+
 	private static JSONObject labels;
 	private static String labelsPath = "";
 
-	private static String defaultLabelsPath = "/resources/defaultLabels.json";
 	private static String resourcesLabelsPath = "/defaultLabels.json";
 
 	private String name;
@@ -40,52 +41,62 @@ public class Label {
 		this.id = id;
 	}
 
+	public static List<Label> getListInstances() {
+		try {
+			// TODO: do not always override
+			//return (labelsStatic == null ? (labelsStatic = (ArrayList<Label>) loadFromFile()) : labelsStatic);
+			return labelsStatic = (ArrayList<Label>) loadFromFile();
+		} catch (IOException | ParseException e) {
+			e.printStackTrace();
+		}
+		return Collections.emptyList();
+	}
+
 	// convert InputStream to String
-		private static String getStringFromInputStream(InputStream is) {
+	private static String getStringFromInputStream(InputStream is) {
 
-			BufferedReader br = null;
-			StringBuilder sb = new StringBuilder();
+		BufferedReader br = null;
+		StringBuilder sb = new StringBuilder();
 
-			String line;
-			try {
+		String line;
+		try {
 
-				br = new BufferedReader(new InputStreamReader(is));
-				while ((line = br.readLine()) != null) {
-					sb.append(line);
-				}
-
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				if (br != null) {
-					try {
-						br.close();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
+			br = new BufferedReader(new InputStreamReader(is));
+			while ((line = br.readLine()) != null) {
+				sb.append(line);
 			}
 
-			return sb.toString();
-
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (br != null) {
+				try {
+					br.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
-		
-	public static List<Label> loadFromFile() throws IOException, ParseException {
+
+		return sb.toString();
+	}
+
+	private static List<Label> loadFromFile() throws IOException, ParseException {
 		if (labelsPath.isEmpty()) {
 			System.out.println("Jenkins.getInstance().getRootDir(): " + Jenkins.getInstance().getRootDir());
 			File configFile = new File(
 					Jenkins.getInstance().getRootDir().getAbsolutePath() + "/shared-maven-repository/config.json");
 			if (!configFile.exists()) {
 				configFile.getParentFile().mkdirs();
-				if(!configFile.createNewFile()) {
-					System.err.println("Unable to create new config file for plugin shared-maven-repository with path: " + configFile.getAbsolutePath());
+				if (!configFile.createNewFile()) {
+					System.err.println("Unable to create new config file for plugin shared-maven-repository with path: "
+							+ configFile.getAbsolutePath());
 					return Collections.emptyList();
 				}
 				System.out.println("resourcesLabelsPath: " + resourcesLabelsPath);
 				InputStream inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
 				OutputStream outputStream = new FileOutputStream(configFile);
-				
-				
+
 				System.out.println("configFile: " + configFile.getAbsolutePath());
 				System.out.println("inputStream: " + getStringFromInputStream(inputStream));
 				inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);

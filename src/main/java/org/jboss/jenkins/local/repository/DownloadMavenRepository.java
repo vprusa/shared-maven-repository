@@ -85,11 +85,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 		
 		public ListBoxModel doFillUseLabelItems() {
 		    ListBoxModel items = new ListBoxModel();
-		    try {
-				Label.loadFromFile().stream().forEach(i->{items.add(i.getName(),i.getId());});
-			} catch (IOException | ParseException e) {
-				e.printStackTrace();
-			}
+				Label.getListInstances().stream().forEach(i->{items.add(i.getName(),i.getId());});
 		    return items;
 		}
     }
