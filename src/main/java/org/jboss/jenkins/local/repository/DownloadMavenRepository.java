@@ -1,6 +1,7 @@
 package org.jboss.jenkins.local.repository;
 
 import java.io.IOException;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -22,9 +23,30 @@ import net.sf.json.JSONObject;
 
 public class DownloadMavenRepository extends Builder implements SimpleBuildStep {
 	
+    private static final Logger log = Logger.getLogger(DownloadMavenRepository.class.getName());
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	public String usedLabel;
+
+	public String getUsedLabel() {
+		return usedLabel;
+	}
+
+	public void setUsedLabel(String usedLabel) {
+		this.usedLabel = usedLabel;
+	}
+	
+	public Label getUsedLabelById() {
+		return Label.getUsedLabelById(getUsedLabel());
+	}
+
 	@DataBoundConstructor
-	public DownloadMavenRepository() {
-		// TODO Auto-generated constructor stub
+	public DownloadMavenRepository(String usedLabel) {
+		this.usedLabel = usedLabel;
 	}
 
 	@Override
@@ -41,7 +63,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 					listener.error("Unable to delete repository.zip");
 				}
 			}
-			FilePath repoFile = MasterMavenRepository.getInstance().getLatestRepo();
+			FilePath repoFile = MasterMavenRepository.getInstance().getLatestRepo(Label.getUsedLabelById(getUsedLabel()));
 			if(repoFile == null) {
 				listener.getLogger().println("Jenkins master does not have any maven repository");
 				return;
@@ -83,7 +105,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 			return true;
 		}
 		
-		public ListBoxModel doFillUseLabelItems() {
+		public ListBoxModel doFillUsedLabelItems() {
 		    ListBoxModel items = new ListBoxModel();
 				Label.getListInstances().stream().forEach(i->{items.add(i.getName(),i.getId());});
 		    return items;

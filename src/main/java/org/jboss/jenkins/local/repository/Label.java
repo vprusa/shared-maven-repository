@@ -19,6 +19,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.jfree.util.Log;
 
+import hudson.FilePath;
 import net.sf.json.JSONObject;
 //import net.sf.json.;
 //import org.json.simple.JSONObject;
@@ -29,15 +30,17 @@ import jenkins.model.Jenkins;
 
 public class Label {
 
-	private static ArrayList<Label> labelsStatic;
+	//private static ArrayList<Label> labelsStatic;
 
-	private static JSONObject labels;
+	//private static JSONObject labels;
 	private static String labelsPath = "";
+
 
 	private static String resourcesLabelsPath = "/defaultLabels.json";
 
 	private String name;
 	private String id;
+	private FilePath latestRepoFile;
 
 	public Label(String id, String name) {
 		super();
@@ -45,12 +48,26 @@ public class Label {
 		this.id = id;
 	}
 
+	public FilePath getLatestRepoFile() {
+		return latestRepoFile;
+	}
+
+	public void setLatestRepoFile(FilePath latestRepoFile) {
+		this.latestRepoFile = latestRepoFile;
+	}
+	
+	
+	public static Label getUsedLabelById(String label) {
+		return Label.getListInstances().stream().filter(l->l.getId().matches(label)).findAny().orElse(null);
+	}
+
 	public static List<Label> getListInstances() {
 		// TODO: do not always override
 		// return (labelsStatic == null ? (labelsStatic = (ArrayList<Label>)
 		// loadFromFile()) : labelsStatic);
 		try {
-			return labelsStatic = (ArrayList<Label>) loadFromFile();
+			//return labelsStatic = (ArrayList<Label>) loadFromFile();
+			return (ArrayList<Label>) labelsStringToList(ArchiveMavenRepository.DescriptorImpl.getLabelsS());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -81,17 +98,29 @@ public class Label {
 					e.printStackTrace();
 				}
 			}
+			if (is != null) {
+				try {
+					is.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 
 		return sb.toString();
 	}
 
 	public static String getCurrentLabel() {
-
 		return "default";
 	}
-
-	private static List<Label> loadFromFile() throws IOException {
+	
+	public static String loadStringFromResourceFile() throws IOException {
+		System.out.println("loadStringFromResourceFile: " + resourcesLabelsPath);
+		//InputStream inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
+		return getStringFromInputStream(Label.class.getResourceAsStream(resourcesLabelsPath));
+	}
+	
+	public static String loadStringFromFile() throws IOException {
 		if (labelsPath.isEmpty()) {
 			System.out.println("Jenkins.getInstance().getRootDir(): " + Jenkins.getInstance().getRootDir());
 			File configFile = new File(
@@ -101,16 +130,16 @@ public class Label {
 				if (!configFile.createNewFile()) {
 					System.err.println("Unable to create new config file for plugin shared-maven-repository with path: "
 							+ configFile.getAbsolutePath());
-					return Collections.emptyList();
+					return "";
 				}
 				System.out.println("resourcesLabelsPath: " + resourcesLabelsPath);
 				InputStream inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
 				OutputStream outputStream = new FileOutputStream(configFile);
 
 				System.out.println("configFile: " + configFile.getAbsolutePath());
-				System.out.println("inputStream: " + getStringFromInputStream(inputStream));
+				//System.out.println("inputStream: " + getStringFromInputStream(inputStream));
 				inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
-
+				
 				IOUtils.copy(inputStream, outputStream);
 				inputStream.close();
 				outputStream.close();
@@ -120,8 +149,20 @@ public class Label {
 		}
 		System.out.println("JSONParser.labelsPath: " + labelsPath);
 		InputStream is = new FileInputStream(new File(labelsPath));
-
-		labels = (JSONObject) JSONSerializer.toJSON(IOUtils.toString(is));
+		return getStringFromInputStream(is);
+	}
+	
+	public static void saveLabels() {
+		try {
+			FileUtils.writeStringToFile(new File(labelsPath), ArchiveMavenRepository.DescriptorImpl.getLabelsS());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/*
+	public static List<Label> loadFromFile() throws IOException {
+		labels = (JSONObject) JSONSerializer.toJSON(loadStringFromFile());
 
 		List<Label> l = new ArrayList<Label>();
 
@@ -131,7 +172,26 @@ public class Label {
 
 		return l;
 	}
+	*/
 
+	public static List<Label> labelsStringToList(String labels) throws IOException {
+		JSONObject labelsJson = labelsStringToJSON(labels);
+
+		List<Label> l = new ArrayList<Label>();
+
+		((Collection<String>) (Collection<?>) labelsJson.keySet()).stream().forEach(key -> {
+			l.add(new Label(key, (String) labelsJson.get(key)));
+		});
+
+		return l;
+	}
+
+
+	public static JSONObject labelsStringToJSON(String labels) {
+		return (JSONObject) JSONSerializer.toJSON(labels);
+	}
+
+	
 	public String getName() {
 		return name;
 	}
