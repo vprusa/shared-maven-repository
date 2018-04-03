@@ -37,9 +37,9 @@ import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 
-public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep, Serializable {
+public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep {
 
-    private static final Logger log = Logger.getLogger(ArchiveMavenRepository.class.getName());
+	private static final Logger log = Logger.getLogger(ArchiveMavenRepository.class.getName());
 
 	/**
 	 * 
@@ -48,11 +48,11 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 
 	public String usedLabel;
 
-
 	@DataBoundConstructor
 	public ArchiveMavenRepository(String usedLabel) {
 		this.usedLabel = usedLabel;
 	}
+
 	@Override
 	public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
@@ -98,34 +98,33 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 		return BuildStepMonitor.NONE;
 	}
 
-
 	public Label getUsedLabelById() {
 		return Label.getUsedLabelById(getUsedLabel());
 	}
-	
+
 	public String getUsedLabel() {
 		return usedLabel;
 	}
-	
+
 	public void setUsedLabel(String usedLabel) {
 		this.usedLabel = usedLabel;
 	}
 
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements Serializable {
-		
+
 		static private String labels;
-				
+
 		public static String getLabelsS() {
 			return labels;
 		}
-		
+
 		public static void setLabelsS(String str) {
 			labels = str;
 		}
-		
+
 		public String getLabels() {
-			if(labels == null) {
+			if (labels == null) {
 				try {
 					setLabels((Label.labelsStringToJSON(Label.loadStringFromFile())).toString());
 				} catch (IOException e) {
@@ -133,8 +132,9 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 					e.printStackTrace();
 					return "{}";
 				}
-			}else {
-				// by default this getter is used to returns indented JSON string in global configuration
+			} else {
+				// by default this getter is used to returns indented JSON string in global
+				// configuration
 				return Label.labelsStringToJSON(labels).toString(2);
 			}
 			return labels;
@@ -161,20 +161,28 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 		 * This human readable name is used in the configuration screen.
 		 */
 		public String getDisplayName() {
-			return "Archive repository";
+			return "Archive .m2 repository";
 		}
 
 		@Override
 		public boolean configure(final StaplerRequest req, JSONObject formData) throws FormException {
-			log.info("configure");
-			log.info(formData.toString());
-			log.info(req.toString());
 			String newLabels = formData.getString("labels");
-			log.info("newLabels ");
+			log.info("New shared-maven-repository labels:");
 			log.info(newLabels);
 			setLabels(newLabels);
 			save();
 			return super.configure(req, formData);
+		}
+
+		public FormValidation doCheckLabels(@QueryParameter String value) throws IOException, ServletException {
+			try {
+				// doCheck for JSON and List compatibility
+				Label.labelsStringToJSON(labels);
+				Label.labelsStringToList(labels);
+				return FormValidation.ok();
+			} catch (NumberFormatException e) {
+				return FormValidation.error("Shared-maven-repository Labels are not in valid JSON Tuples list format, used format {\"key\":\"value\", ...}");
+			}
 		}
 
 		@Override
@@ -183,13 +191,9 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep,
 		}
 
 		public ListBoxModel doFillUsedLabelItems() {
-			log.info("doFillUsedLabelItems");
-			ListBoxModel items = new ListBoxModel();
-			Label.getListInstances().stream().forEach(i -> {
-				items.add(new Option(i.getName(), i.getId()));
-			});
-
-			return items;
+		    ListBoxModel items = new ListBoxModel();
+				Label.getListInstances().stream().forEach(i->{items.add(i.getName(),i.getId());});
+		    return items;
 		}
 
 	}

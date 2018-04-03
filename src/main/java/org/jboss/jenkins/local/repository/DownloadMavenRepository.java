@@ -91,7 +91,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
          * This human readable name is used in the configuration screen.
          */
         public String getDisplayName() {
-            return "download repository";
+            return "Download .m2 repository";
         }
 
         @Override

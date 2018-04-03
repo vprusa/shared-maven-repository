@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -30,11 +31,9 @@ import jenkins.model.Jenkins;
 
 public class Label {
 
-	//private static ArrayList<Label> labelsStatic;
+    private static final Logger log = Logger.getLogger(Label.class.getName());
 
-	//private static JSONObject labels;
 	private static String labelsPath = "";
-
 
 	private static String resourcesLabelsPath = "/defaultLabels.json";
 
@@ -115,14 +114,13 @@ public class Label {
 	}
 	
 	public static String loadStringFromResourceFile() throws IOException {
-		System.out.println("loadStringFromResourceFile: " + resourcesLabelsPath);
-		//InputStream inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
+		log.info("loadStringFromResourceFile: " + resourcesLabelsPath);
 		return getStringFromInputStream(Label.class.getResourceAsStream(resourcesLabelsPath));
 	}
 	
 	public static String loadStringFromFile() throws IOException {
 		if (labelsPath.isEmpty()) {
-			System.out.println("Jenkins.getInstance().getRootDir(): " + Jenkins.getInstance().getRootDir());
+			log.info("Jenkins.getInstance().getRootDir(): " + Jenkins.getInstance().getRootDir());
 			File configFile = new File(
 					Jenkins.getInstance().getRootDir().getAbsolutePath() + "/shared-maven-repository/config.json");
 			if (!configFile.exists()) {
@@ -132,12 +130,12 @@ public class Label {
 							+ configFile.getAbsolutePath());
 					return "";
 				}
-				System.out.println("resourcesLabelsPath: " + resourcesLabelsPath);
+				log.info("resourcesLabelsPath: " + resourcesLabelsPath);
 				InputStream inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
 				OutputStream outputStream = new FileOutputStream(configFile);
 
-				System.out.println("configFile: " + configFile.getAbsolutePath());
-				//System.out.println("inputStream: " + getStringFromInputStream(inputStream));
+				log.info("configFile: " + configFile.getAbsolutePath());
+				//log.info("inputStream: " + getStringFromInputStream(inputStream));
 				inputStream = Label.class.getResourceAsStream(resourcesLabelsPath);
 				
 				IOUtils.copy(inputStream, outputStream);
@@ -145,9 +143,9 @@ public class Label {
 				outputStream.close();
 			}
 			labelsPath = configFile.getAbsolutePath();
-			System.out.println("labelsPath: " + labelsPath);
+			log.info("labelsPath: " + labelsPath);
 		}
-		System.out.println("JSONParser.labelsPath: " + labelsPath);
+		log.info("JSONParser.labelsPath: " + labelsPath);
 		InputStream is = new FileInputStream(new File(labelsPath));
 		return getStringFromInputStream(is);
 	}
