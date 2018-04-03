@@ -1,35 +1,25 @@
 package org.jboss.jenkins.local.repository;
 
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.HudsonTestCase;
-import org.jvnet.hudson.test.JenkinsRecipe;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.xml.sax.SAXException;
-
 import org.jvnet.hudson.test.JenkinsRule.WebClient;
-import org.jvnet.hudson.test.recipes.WithPlugin;
+import org.xml.sax.SAXException;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 
 /**
- * 
- * Following https://wiki.jenkins.io/display/JENKINS/Unit+Test
+ * @author vprusa Following https://wiki.jenkins.io/display/JENKINS/Unit+Test
  */
 public class SharedMavenRepositoryDefaultTests {
 
@@ -39,7 +29,7 @@ public class SharedMavenRepositoryDefaultTests {
 	String projectName = "unitTest-1";
 	WebClient wc;
 	FreeStyleProject project;
-	
+
 	@Rule
 	public JenkinsRule j = new JenkinsRule();
 
@@ -51,9 +41,8 @@ public class SharedMavenRepositoryDefaultTests {
 		log.info("URL for jenkins is: " + j.getURL().toString());
 
 		project = j.createFreeStyleProject(projectName);
-		
 	}
-	
+
 	@After
 	public void after() throws IOException, InterruptedException {
 		wc.close();
@@ -66,12 +55,12 @@ public class SharedMavenRepositoryDefaultTests {
 			throws IOException, InterruptedException, ExecutionException, SAXException {
 		String[] expectedConfigurationPageTexts = { (new DownloadMavenRepository.DescriptorImpl()).getDisplayName(),
 				"Use label",
-				"/jenkins/job/" + projectName
+				"job/" + projectName
 						+ "/descriptorByName/org.jboss.jenkins.local.repository.DownloadMavenRepository/fillUsedLabelItems",
-				"<option value=\"default\" selected=\"selected\">" };
-		
+				"<option label=\"default\" value=\"default\" selected=\"selected\">" };
+
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
-		
+
 		verifyPageFor(expectedConfigurationPageTexts, "job/" + projectName + "/configure");
 	}
 
@@ -81,17 +70,27 @@ public class SharedMavenRepositoryDefaultTests {
 			throws IOException, InterruptedException, ExecutionException, SAXException {
 		String[] expectedConfigurationPageTexts = { (new ArchiveMavenRepository.DescriptorImpl()).getDisplayName(),
 				"Use label",
-				"/jenkins/job/" + projectName
+				"job/" + projectName
 						+ "/descriptorByName/org.jboss.jenkins.local.repository.ArchiveMavenRepository/fillUsedLabelItems",
-				"<option value=\"default\" selected=\"selected\">" };
+				"<option label=\"default\" value=\"default\" selected=\"selected\">" };
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
-		
+
 		verifyPageFor(expectedConfigurationPageTexts, "job/" + projectName + "/configure");
 	}
 
-	
-	public void verifyPageFor(String[] expectedConfigurationPageTexts, String configurationUrl) throws IOException, SAXException {
+	@Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testDefaultGlobalConfiguration()
+			throws IOException, InterruptedException, ExecutionException, SAXException {
+		String[] expectedConfigurationPageTexts = { "Shared maven repository", "Add new label",
+				"descriptorByName/org.jboss.jenkins.local.repository.ArchiveMavenRepository/checkLabels" };
+
+		verifyPageFor(expectedConfigurationPageTexts, "configure");
+	}
+
+	public void verifyPageFor(String[] expectedConfigurationPageTexts, String configurationUrl)
+			throws IOException, SAXException {
 		project.save();
 		HtmlPage page = wc.goTo(configurationUrl);
 		String pageText = page.asXml();
