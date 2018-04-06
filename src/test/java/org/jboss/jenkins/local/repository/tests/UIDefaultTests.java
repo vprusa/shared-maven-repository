@@ -1,4 +1,4 @@
-package org.jboss.jenkins.local.repository;
+package org.jboss.jenkins.local.repository.tests;
 
 import static org.junit.Assert.assertTrue;
 
@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
+import org.jboss.jenkins.local.repository.ArchiveMavenRepository;
+import org.jboss.jenkins.local.repository.DownloadMavenRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -21,9 +23,9 @@ import hudson.model.FreeStyleProject;
 /**
  * @author vprusa Following https://wiki.jenkins.io/display/JENKINS/Unit+Test
  */
-public class SharedMavenRepositoryDefaultTests {
+public class UIDefaultTests {
 
-	private static final Logger log = Logger.getLogger(SharedMavenRepositoryDefaultTests.class.getName());
+	private static final Logger log = Logger.getLogger(UIDefaultTests.class.getName());
 
 	String usedLabel = "default";
 	String projectName = "unitTest-1";

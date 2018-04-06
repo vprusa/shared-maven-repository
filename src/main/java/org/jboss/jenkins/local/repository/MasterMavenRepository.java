@@ -10,7 +10,6 @@ import jenkins.model.Jenkins;
 public class MasterMavenRepository {
 	
 	private static MasterMavenRepository instance;
-	//private static FilePath latestRepoFile;
 	private static File repositoriesDir;
 	
 	private MasterMavenRepository() {
@@ -37,9 +36,8 @@ public class MasterMavenRepository {
 		Jenkins jenkins = Jenkins.getInstance();
 		if(jenkins != null) {
 			listener.getLogger().println("Upload "+repositoryTar.absolutize().toURI()+" to Jenkins master");
-			FilePath masterRepo = new FilePath(new File(repositoriesDir, repositoryTar.getName()));
+			FilePath masterRepo = new FilePath(new File(new File(repositoriesDir, label.getId()), repositoryTar.getName()));
 			repositoryTar.copyTo(masterRepo);
-			//setLatestRepoFile(masterRepo, label);
 			label.setLatestRepoFile(masterRepo);
 			listener.getLogger().println("Repository uploaded to "+masterRepo.absolutize().toURI());
 			deleteOldRepositories(listener, label);
@@ -48,7 +46,7 @@ public class MasterMavenRepository {
 	
 	private void deleteOldRepositories(TaskListener listener, Label label) {
 		listener.getLogger().println("Delete old repositories from master");
-		File[] repositories = repositoriesDir.listFiles();
+		File[] repositories = new File(repositoriesDir, label.getId()).listFiles();
 		if(repositories != null) {
 			for(File repo: repositories) {
 				String repoName = repo.getName();
@@ -64,14 +62,11 @@ public class MasterMavenRepository {
 		}
 	}
 	
-	/*private static synchronized void setLatestRepoFile(FilePath file) {
-		latestRepoFile = file;
-	}*/
-	
 	public FilePath getLatestRepo(Label label) {
 		try {
 			if(label.getLatestRepoFile() == null || !label.getLatestRepoFile().exists()) {
-				File lastModifiedFile = lastFileModified(repositoriesDir);
+				File repositoriesLabelDir = new File(repositoriesDir, label.getId());
+				File lastModifiedFile = lastFileModified(repositoriesLabelDir);
 				if(lastModifiedFile == null) {
 					return null;
 				} 

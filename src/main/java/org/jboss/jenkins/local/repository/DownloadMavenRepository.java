@@ -2,7 +2,6 @@ package org.jboss.jenkins.local.repository;
 
 import java.io.IOException;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
@@ -11,7 +10,6 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
-import hudson.model.Action;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
@@ -22,8 +20,8 @@ import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 
 public class DownloadMavenRepository extends Builder implements SimpleBuildStep {
-	
-    private static final Logger log = Logger.getLogger(DownloadMavenRepository.class.getName());
+
+	private static final Logger log = Logger.getLogger(DownloadMavenRepository.class.getName());
 
 	/**
 	 * 
@@ -39,7 +37,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 	public void setUsedLabel(String usedLabel) {
 		this.usedLabel = usedLabel;
 	}
-	
+
 	public Label getUsedLabelById() {
 		return Label.getUsedLabelById(getUsedLabel());
 	}
@@ -53,18 +51,21 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 	public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
-		if(jenkins != null) {
+		if (jenkins != null) {
 			listener.getLogger().println("Download maven repository from Jenkins master");
-			FilePath jobRepo = new FilePath(workspace,"repository.zip");
-			if(jobRepo.exists()) {
+			FilePath jobRepo = new FilePath(workspace, "repository.zip");
+			if (jobRepo.exists()) {
 				listener.getLogger().println(jobRepo.getName() + " already exists, delete.");
 				boolean deleted = jobRepo.delete();
-				if(!deleted) {
+				if (!deleted) {
 					listener.error("Unable to delete repository.zip");
 				}
 			}
-			FilePath repoFile = MasterMavenRepository.getInstance().getLatestRepo(Label.getUsedLabelById(getUsedLabel()));
-			if(repoFile == null) {
+			String usedLabelId = getUsedLabel();
+			Label usedLabel  = Label.getUsedLabelById(usedLabelId);
+			FilePath repoFile = MasterMavenRepository.getInstance()
+					.getLatestRepo(usedLabel);
+			if (repoFile == null) {
 				listener.getLogger().println("Jenkins master does not have any maven repository");
 				return;
 			}
@@ -72,44 +73,46 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 			jobRepo.unzip(workspace);
 			listener.getLogger().println("Jenkins master repository unzipped.");
 		}
-		
+
 	}
-	
-	@Extension 
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
-		
-        /**
-         * In order to load the persisted global configuration, you have to 
-         * call load() in the constructor.
-         */
-        public DescriptorImpl() {
-            load();
-        }
+	@Extension
+	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
-        /**
-         * This human readable name is used in the configuration screen.
-         */
-        public String getDisplayName() {
-            return "Download .m2 repository";
-        }
+		/**
+		 * In order to load the persisted global configuration, you have to call load()
+		 * in the constructor.
+		 */
+		public DescriptorImpl() {
+			load();
+			ArchiveMavenRepository.DescriptorImpl.getLabelsS();
+		}
 
-        @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-            save();
-            return super.configure(req,formData);
-        }
+		/**
+		 * This human readable name is used in the configuration screen.
+		 */
+		public String getDisplayName() {
+			return "Download .m2 repository";
+		}
+
+		@Override
+		public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+			save();
+			return super.configure(req, formData);
+		}
 
 		@Override
 		public boolean isApplicable(Class<? extends AbstractProject> arg0) {
 			return true;
 		}
-		
+
 		public ListBoxModel doFillUsedLabelItems() {
-		    ListBoxModel items = new ListBoxModel();
-				Label.getListInstances().stream().forEach(i->{items.add(i.getName(),i.getId());});
-		    return items;
+			ListBoxModel items = new ListBoxModel();
+			Label.getListInstances().stream().forEach(i -> {
+				items.add(i.getName(), i.getId());
+			});
+			return items;
 		}
-    }
+	}
 
 }

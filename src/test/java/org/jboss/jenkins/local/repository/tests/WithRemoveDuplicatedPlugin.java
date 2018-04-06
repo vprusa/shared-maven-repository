@@ -1,34 +1,19 @@
-package org.jboss.jenkins.local.repository;
+package org.jboss.jenkins.local.repository.tests;
 
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static org.junit.Assert.*;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URL;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Rule;
-import org.junit.Test;
 import org.jvnet.hudson.test.HudsonTestCase;
 import org.jvnet.hudson.test.JenkinsRecipe;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.xml.sax.SAXException;
-
-import org.jvnet.hudson.test.JenkinsRule.WebClient;
 import org.jvnet.hudson.test.recipes.Recipe;
-import org.jvnet.hudson.test.recipes.WithPlugin;
-//import org.jboss.jenkins.local.repository.WithOutsidePlugin;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.google.common.io.Files;
-
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
 
 /**
  * Installs the specified plugins before launching Jenkins. Note: idk if this is
@@ -64,9 +49,10 @@ public @interface WithRemoveDuplicatedPlugin {
 
 		@Override
 		public void decorateHome(HudsonTestCase testCase, File home) throws Exception {
-			for (String plugin : a.value()) {
-				URL res = getClass().getClassLoader().getResource("plugins/" + plugin);
-				FileUtils.copyURLToFile(res, new File(home, "plugins/" + plugin));
+			for (String pluginName : a.value()) {
+				// solving https://issues.jenkins-ci.org/browse/JENKINS-30099
+				File mayBeExistingJPL = new File(home, "plugins/"+ pluginName + ".jpl");
+				mayBeExistingJPL.delete();
 			}
 		}
 	}

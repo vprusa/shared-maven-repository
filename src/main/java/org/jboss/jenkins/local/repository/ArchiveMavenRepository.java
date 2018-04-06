@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -12,11 +11,9 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
-import org.jfree.util.Log;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 
 import hudson.Extension;
 import hudson.FilePath;
@@ -25,14 +22,12 @@ import hudson.model.AbstractProject;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.model.Descriptor.FormException;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.ListBoxModel.Option;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
@@ -113,21 +108,23 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements Serializable {
 
+		/**
+		 * In order to load the persisted global configuration, you have to call load()
+		 * in the constructor.
+		 */
+		public DescriptorImpl() {
+			load();
+			getLabelsS();
+		}
+
 		static private String labels;
 
 		public static String getLabelsS() {
-			return labels;
-		}
-
-		public static void setLabelsS(String str) {
-			labels = str;
-		}
-
-		public String getLabels() {
 			if (labels == null) {
 				try {
-					setLabels((Label.labelsStringToJSON(Label.loadStringFromFile())).toString());
+					labels = (Label.labelsStringToJSON(Label.loadStringFromFile())).toString();
 				} catch (IOException e) {
+					// TODO fix because this may net be bulletproof
 					// if everything goes wrong return empty JSON list
 					e.printStackTrace();
 					return "{}";
@@ -138,6 +135,14 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				return Label.labelsStringToJSON(labels).toString(2);
 			}
 			return labels;
+		}
+
+		public static void setLabelsS(String str) {
+			labels = str;
+		}
+
+		public String getLabels() {
+			return getLabelsS();
 		}
 
 		public void setLabels(String labels) {
@@ -167,8 +172,11 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		@Override
 		public boolean configure(final StaplerRequest req, JSONObject formData) throws FormException {
 			String newLabels = formData.getString("labels");
-			log.info("New shared-maven-repository labels:");
-			log.info(newLabels);
+			if (newLabels != null) {
+				log.info("New shared-maven-repository labels:" + newLabels.toString());
+			} else {
+				log.info("New shared-maven-repository labels are empty!");
+			}
 			setLabels(newLabels);
 			save();
 			return super.configure(req, formData);
@@ -181,7 +189,8 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				Label.labelsStringToList(labels);
 				return FormValidation.ok();
 			} catch (NumberFormatException e) {
-				return FormValidation.error("Shared-maven-repository Labels are not in valid JSON Tuples list format, used format {\"key\":\"value\", ...}");
+				return FormValidation.error(
+						"Shared-maven-repository Labels are not in valid JSON Tuples list format, used format {\"key\":\"value\", ...}");
 			}
 		}
 
@@ -191,9 +200,11 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		}
 
 		public ListBoxModel doFillUsedLabelItems() {
-		    ListBoxModel items = new ListBoxModel();
-				Label.getListInstances().stream().forEach(i->{items.add(i.getName(),i.getId());});
-		    return items;
+			ListBoxModel items = new ListBoxModel();
+			Label.getListInstances().stream().forEach(i -> {
+				items.add(i.getName(), i.getId());
+			});
+			return items;
 		}
 
 	}
