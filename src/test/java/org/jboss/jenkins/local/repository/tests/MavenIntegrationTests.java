@@ -28,10 +28,10 @@ public class MavenIntegrationTests {
 
 	private static final Logger log = Logger.getLogger(MavenIntegrationTests.class.getName());
 
-	String usedLabel = "default";
 	String projectName = "unitTest-1";
 	WebClient wc;
 	FreeStyleProject project;
+	final int WAIT_SECS_LIMIT = 10;
 
 	@Rule
 	public JenkinsRule j = new JenkinsRule();
@@ -44,6 +44,7 @@ public class MavenIntegrationTests {
 		log.info("URL for jenkins is: " + j.getURL().toString());
 
 		project = j.createFreeStyleProject(projectName);
+
 	}
 
 	@After
@@ -54,22 +55,76 @@ public class MavenIntegrationTests {
 
 	@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
-	public void testDefaultLabelsForDownloadStep()
+	public void testMoreLabelsLabelsForMoreJobRuns()
 			throws IOException, InterruptedException, ExecutionException, SAXException {
-		
+		String usedLabel = "default";
+
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		verifyThatSingleRunIsSuccessful();
+		// verify multiple runs - archive - download
+		verifyThatRunsAreSuccessful(2);
 	}
 
-	public void verifyThatSingleRunIsSuccessful()
+	// @Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testDefaultDownloadAndNoArchive()
+			throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel = "default";
+
+		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
+		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+
+		// verify multiple runs - download -> archive nothing
+		verifyThatRunsAreSuccessful(2);
+	}
+
+	// @Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testNotExistingArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel = "none";
+
+		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+
+		// verify multiple runs - wrong archive
+		verifyThatRunsAreSuccessful(1);
+	}
+
+	// @Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testNotExistingDownload() throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel = "none";
+
+		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
+
+		// verify multiple runs - wrong download
+		verifyThatRunsAreSuccessful(1);
+	}
+
+	// @Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testDefaultArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel = "default";
+
+		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+
+		// verify multiple runs - archive
+		verifyThatRunsAreSuccessful(1);
+	}
+
+	// @Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testDefaultDownload() throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel = "default";
+
+		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
+
+		// verify multiple runs - download
+		verifyThatRunsAreSuccessful(1);
+	}
+
+	public void verifyThatRunsAreSuccessful(int builds)
 			throws IOException, SAXException, InterruptedException, ExecutionException {
-		String tmpMavenRepositoryPath = "/tmp/.m2/repository";
-
-		File m2repository = new File(tmpMavenRepositoryPath);
-		m2repository.mkdirs();
-
 
 		File projectWorkspace = new File(j.jenkins.getRootPath() + "/workspace/" + projectName);
 		File projectWorkspaceRepository = new File(projectWorkspace, ".repository");
@@ -83,17 +138,20 @@ public class MavenIntegrationTests {
 
 		FreeStyleBuild build = project.scheduleBuild2(0).get();
 
-		int WAIT_SECS_LIMIT = 10;
+		waitAndVerifyRunSuccess(build, Result.SUCCESS);
+	}
+
+	public void waitAndVerifyRunSuccess(FreeStyleBuild build, Result expected) throws InterruptedException {
+
 		int i = 0;
-		while (i < WAIT_SECS_LIMIT && !build.getResult().isBetterOrEqualTo(Result.SUCCESS)) {
+		while (i < WAIT_SECS_LIMIT && !build.getResult().isBetterOrEqualTo(expected)) {
 			// TODO better solution
 			Thread.sleep(1000);
 			i++;
 		}
 		log.info("Test waited for job " + i + " seconds");
 		assertTrue("Build did not passed with result: " + build.getResult().toString(),
-				build.getResult().isBetterOrEqualTo(Result.SUCCESS));
-
+				build.getResult().isBetterOrEqualTo(expected));
 	}
 
 }

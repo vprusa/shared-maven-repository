@@ -96,7 +96,7 @@ public class UIDefaultTests {
 		project.save();
 		HtmlPage page = wc.goTo(configurationUrl);
 		String pageText = page.asXml();
-		log.info("Going to check page texts at URI '" + page.getUrl() + "'");
+		log.info("Going to check page texts at URI: " + page.getUrl());
 		//log.info(pageText);
 		for (String expectedText : expectedConfigurationPageTexts) {
 			assertTrue("Page '" + page.getUrl() + "' should contain text '" + expectedText + "' but does not",
