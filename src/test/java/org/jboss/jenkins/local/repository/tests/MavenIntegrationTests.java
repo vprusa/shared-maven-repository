@@ -1,5 +1,6 @@
 package org.jboss.jenkins.local.repository.tests;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -9,6 +10,7 @@ import java.util.logging.Logger;
 
 import org.jboss.jenkins.local.repository.ArchiveMavenRepository;
 import org.jboss.jenkins.local.repository.DownloadMavenRepository;
+import org.jboss.jenkins.local.repository.Label;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -53,19 +55,32 @@ public class MavenIntegrationTests {
 		project.delete();
 	}
 
+	/** verify multiple runs - archive - download */
 	@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
-	public void testMoreLabelsLabelsForMoreJobRuns()
-			throws IOException, InterruptedException, ExecutionException, SAXException {
-		String usedLabel = "default";
+	public void testNonDefault() throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel1 = "download";
+		String usedLabel2 = "archive";
 
-		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
-		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'default':'default', '" + usedLabel1 + "':'" + usedLabel1
+				+ "','" + usedLabel2 + "':'" + usedLabel2 + "'}");
+		Label.saveLabels();
 
-		// verify multiple runs - archive - download
-		verifyThatRunsAreSuccessful(2);
+		assertFalse("Mehotd Label.getLabelsPath() Should return empty value by now", Label.getLabelsPath().isEmpty());
+		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
+				(new File(Label.getLabelsPath()).exists()));
+
+		// here new labels should be updated in configuration
+
+		project.getBuildersList().add(new DownloadMavenRepository(usedLabel1));
+		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel2));
+
+		project.save();
+		prepareRunAndVerifySuccessful(2);
+		log.info("Done");
 	}
 
+	/** verify runs - download -> archive nothing -> download -> archive */
 	// @Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDefaultDownloadAndNoArchive()
@@ -75,10 +90,10 @@ public class MavenIntegrationTests {
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		// verify multiple runs - download -> archive nothing
-		verifyThatRunsAreSuccessful(2);
+		prepareRunAndVerifySuccessful(2);
 	}
 
+	/** verify run - wrong archive */
 	// @Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testNotExistingArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -86,10 +101,10 @@ public class MavenIntegrationTests {
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		// verify multiple runs - wrong archive
-		verifyThatRunsAreSuccessful(1);
+		prepareRunAndVerifySuccessful(1);
 	}
 
+	/** verify run - wrong download */
 	// @Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testNotExistingDownload() throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -97,10 +112,10 @@ public class MavenIntegrationTests {
 
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 
-		// verify multiple runs - wrong download
-		verifyThatRunsAreSuccessful(1);
+		prepareRunAndVerifySuccessful(1);
 	}
 
+	/** verify run - archive */
 	// @Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDefaultArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -108,10 +123,10 @@ public class MavenIntegrationTests {
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		// verify multiple runs - archive
-		verifyThatRunsAreSuccessful(1);
+		prepareRunAndVerifySuccessful(1);
 	}
 
+	/** verify run - download */
 	// @Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDefaultDownload() throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -119,11 +134,10 @@ public class MavenIntegrationTests {
 
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 
-		// verify multiple runs - download
-		verifyThatRunsAreSuccessful(1);
+		prepareRunAndVerifySuccessful(1);
 	}
 
-	public void verifyThatRunsAreSuccessful(int builds)
+	public void prepareRunAndVerifySuccessful(int runs)
 			throws IOException, SAXException, InterruptedException, ExecutionException {
 
 		File projectWorkspace = new File(j.jenkins.getRootPath() + "/workspace/" + projectName);
@@ -134,11 +148,10 @@ public class MavenIntegrationTests {
 		File repositoryTestFile = new File(projectWorkspaceRepository, "test.txt");
 		repositoryTestFile.createNewFile();
 
-		project.save();
-
-		FreeStyleBuild build = project.scheduleBuild2(0).get();
-
-		waitAndVerifyRunSuccess(build, Result.SUCCESS);
+		for (int runNo = 0; runNo < runs; runNo++) {
+			FreeStyleBuild build = project.scheduleBuild2(0).get();
+			waitAndVerifyRunSuccess(build, Result.SUCCESS);
+		}
 	}
 
 	public void waitAndVerifyRunSuccess(FreeStyleBuild build, Result expected) throws InterruptedException {
@@ -150,8 +163,8 @@ public class MavenIntegrationTests {
 			i++;
 		}
 		log.info("Test waited for job " + i + " seconds");
-		assertTrue("Build did not passed with result: " + build.getResult().toString(),
-				build.getResult().isBetterOrEqualTo(expected));
+		assertFalse("Build did not passed with result: " + build.getResult().toString(),
+				!build.getResult().isBetterOrEqualTo(expected));
 	}
 
 }

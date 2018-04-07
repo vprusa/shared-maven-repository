@@ -28,6 +28,10 @@ public class Label {
 
 	private static String labelsPath = "";
 
+	public static String getLabelsPath() {
+		return labelsPath;
+	}
+
 	private static String resourcesLabelsPath = "/defaultLabels.json";
 
 	private String name;
