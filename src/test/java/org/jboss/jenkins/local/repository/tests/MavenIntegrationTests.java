@@ -24,6 +24,13 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 
 /**
+ * These tests cover scenarios following patter:
+ * 
+ * 1. Start jenkins with this plugin
+ * 2. Create new simple project
+ * 3. Set configuration (Download, Archive, necessary requirements - files, etc.)
+ * 4. Verify results
+ * 
  * @author vprusa Following https://wiki.jenkins.io/display/JENKINS/Unit+Test
  */
 public class MavenIntegrationTests {
@@ -56,9 +63,9 @@ public class MavenIntegrationTests {
 	}
 
 	/** verify multiple runs - archive - download */
-	@Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
-	public void testNonDefault() throws IOException, InterruptedException, ExecutionException, SAXException {
+	public void testDifferentDownloadAndArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel1 = "download";
 		String usedLabel2 = "archive";
 
@@ -76,12 +83,11 @@ public class MavenIntegrationTests {
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel2));
 
 		project.save();
-		prepareRunAndVerifySuccessful(2);
-		log.info("Done");
+		prepareStartAndVerifySuccessful(2);
 	}
 
 	/** verify runs - download -> archive nothing -> download -> archive */
-	// @Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDefaultDownloadAndNoArchive()
 			throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -90,54 +96,54 @@ public class MavenIntegrationTests {
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		prepareRunAndVerifySuccessful(2);
+		prepareStartAndVerifySuccessful(2);
 	}
 
 	/** verify run - wrong archive */
-	// @Test
+	@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testNotExistingArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "none";
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		prepareRunAndVerifySuccessful(1);
+		prepareStartAndVerifySuccessful(1);
 	}
 
 	/** verify run - wrong download */
-	// @Test
+	@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testNotExistingDownload() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "none";
 
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 
-		prepareRunAndVerifySuccessful(1);
+		prepareStartAndVerifySuccessful(1);
 	}
 
 	/** verify run - archive */
-	// @Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDefaultArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "default";
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 
-		prepareRunAndVerifySuccessful(1);
+		prepareStartAndVerifySuccessful(1);
 	}
 
 	/** verify run - download */
-	// @Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDefaultDownload() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "default";
 
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 
-		prepareRunAndVerifySuccessful(1);
+		prepareStartAndVerifySuccessful(1);
 	}
 
-	public void prepareRunAndVerifySuccessful(int runs)
+	public void prepareStartAndVerifySuccessful(int runs)
 			throws IOException, SAXException, InterruptedException, ExecutionException {
 
 		File projectWorkspace = new File(j.jenkins.getRootPath() + "/workspace/" + projectName);
