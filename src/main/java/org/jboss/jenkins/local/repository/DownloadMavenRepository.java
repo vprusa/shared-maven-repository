@@ -62,9 +62,13 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 				}
 			}
 			String usedLabelId = getUsedLabel();
-			Label usedLabel  = Label.getUsedLabelById(usedLabelId);
-			FilePath repoFile = MasterMavenRepository.getInstance()
-					.getLatestRepo(usedLabel);
+			Label usedLabel = Label.getUsedLabelById(usedLabelId);
+			if (usedLabel == null) {
+				listener.getLogger()
+						.println("Jenkins master does not have any maven repository for label " + usedLabelId);
+				return;
+			}
+			FilePath repoFile = usedLabel.getLatestRepoFile();
 			if (repoFile == null) {
 				listener.getLogger().println("Jenkins master does not have any maven repository");
 				return;

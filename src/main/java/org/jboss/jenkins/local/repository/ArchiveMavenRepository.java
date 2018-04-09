@@ -60,27 +60,32 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				return;
 			}
 			listener.getLogger().println("Archive private maven repository");
-			List<FilePath> files = workspace.list();
-			for (FilePath file : files) {
-				if (file.isDirectory() && file.getName().equals(".repository")) {
-					listener.getLogger().println("Found .repository folder");
-					FilePath repoFile = new FilePath(workspace, "repository-" + UUID.randomUUID().toString() + ".zip");
-					if (!repoFile.exists()) {
-						repoFile.touch(new Date().getTime());
-						listener.getLogger().println("Created empty zip " + repoFile.toURI());
+			Label label = Label.getUsedLabelById(getUsedLabel());
+			if (label != null) {
+				List<FilePath> files = workspace.list();
+				for (FilePath file : files) {
+					if (file.isDirectory() && file.getName().equals(".repository")) {
+						listener.getLogger().println("Found .repository folder");
+						FilePath repoFile = new FilePath(workspace,
+								"repository-" + UUID.randomUUID().toString() + ".zip");
+						if (!repoFile.exists()) {
+							repoFile.touch(new Date().getTime());
+							listener.getLogger().println("Created empty zip " + repoFile.toURI());
+						}
+						RepoFileFilter filter = new RepoFileFilter();
+						filter.preparePath(new File(file.toURI()));
+						OutputStream repoOutputStream = repoFile.write();
+						try {
+							listener.getLogger().println("Fill archive " + repoFile.toURI());
+							file.archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
+							listener.getLogger().println("Done!");
+						} finally {
+							repoOutputStream.close();
+						}
+
+						MasterMavenRepository.getInstance().uploadRepository(repoFile, listener, label);
+						return;
 					}
-					RepoFileFilter filter = new RepoFileFilter();
-					filter.preparePath(new File(file.toURI()));
-					OutputStream repoOutputStream = repoFile.write();
-					try {
-						listener.getLogger().println("Fill archive " + repoFile.toURI());
-						file.archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
-						listener.getLogger().println("Done!");
-					} finally {
-						repoOutputStream.close();
-					}
-					MasterMavenRepository.getInstance().uploadRepository(repoFile, listener, getUsedLabelById());
-					return;
 				}
 			}
 			listener.getLogger().println(".repository folder not found");
@@ -91,10 +96,6 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 	@Override
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.NONE;
-	}
-
-	public Label getUsedLabelById() {
-		return Label.getUsedLabelById(getUsedLabel());
 	}
 
 	public String getUsedLabel() {

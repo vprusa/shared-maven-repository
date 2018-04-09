@@ -24,7 +24,7 @@ import jenkins.model.Jenkins;
 
 public class Label {
 
-    private static final Logger log = Logger.getLogger(Label.class.getName());
+	private static final Logger log = Logger.getLogger(Label.class.getName());
 
 	private static String labelsPath = "";
 
@@ -39,22 +39,19 @@ public class Label {
 	private FilePath latestRepoFile;
 
 	public Label(String id, String name) {
-		super();
 		this.name = name;
 		this.id = id;
 	}
 
-	public FilePath getLatestRepoFile() {
-		return latestRepoFile;
+	public FilePath getLatestRepoFile() throws IOException, InterruptedException {
+		if(latestRepoFile != null && latestRepoFile.exists()) {
+			return latestRepoFile;
+		}
+		return latestRepoFile = MasterMavenRepository.getLatestRepo(this);
 	}
 
-	public void setLatestRepoFile(FilePath latestRepoFile) {
-		this.latestRepoFile = latestRepoFile;
-	}
-	
-	
 	public static Label getUsedLabelById(String label) {
-		return Label.getListInstances().stream().filter(l->l.getId().matches(label)).findAny().orElse(null);
+		return Label.getListInstances().stream().filter(l -> l.getId().matches(label)).findAny().orElse(null);
 	}
 
 	public static List<Label> getListInstances() {
@@ -62,7 +59,6 @@ public class Label {
 		// return (labelsStatic == null ? (labelsStatic = (ArrayList<Label>)
 		// loadFromFile()) : labelsStatic);
 		try {
-			//return labelsStatic = (ArrayList<Label>) loadFromFile();
 			return (ArrayList<Label>) labelsStringToList(ArchiveMavenRepository.DescriptorImpl.getLabelsS());
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -77,12 +73,10 @@ public class Label {
 
 		String line;
 		try {
-
 			br = new BufferedReader(new InputStreamReader(is));
 			while ((line = br.readLine()) != null) {
 				sb.append(line);
 			}
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
@@ -105,24 +99,16 @@ public class Label {
 		return sb.toString();
 	}
 
-	public static String getCurrentLabel() {
-		return "default";
-	}
-	
-	public static String loadStringFromResourceFile() throws IOException {
-		return getStringFromInputStream(Label.class.getResourceAsStream(resourcesLabelsPath));
-	}
-	
 	public static void copyResourceTo(String src, String target, boolean delete) throws IOException {
 		File targetF = new File(target);
-		
+
 		targetF.getParentFile().mkdirs();
 
-		if(delete == true) {
+		if (delete == true) {
 			targetF.delete();
 			targetF.createNewFile();
 		}
-		
+
 		InputStream inputStream = Label.class.getResourceAsStream(src);
 		OutputStream outputStream = new FileOutputStream(target);
 
@@ -130,12 +116,13 @@ public class Label {
 		inputStream.close();
 		outputStream.close();
 	}
-	
+
 	public static String loadStringFromFile() throws IOException {
 		if (labelsPath.isEmpty()) {
-			String configFileName = Jenkins.getInstance().getRootDir().getAbsolutePath() + "/shared-maven-repository/config.json";
+			String configFileName = Jenkins.getInstance().getRootDir().getAbsolutePath()
+					+ "/shared-maven-repository/config.json";
 			File configFile = new File(configFileName);
-			
+
 			if (!configFile.exists()) {
 				copyResourceTo(resourcesLabelsPath, configFileName, false);
 			}
@@ -144,7 +131,7 @@ public class Label {
 		InputStream is = new FileInputStream(new File(labelsPath));
 		return getStringFromInputStream(is);
 	}
-	
+
 	public static void saveLabels() {
 		try {
 			FileUtils.writeStringToFile(new File(labelsPath), ArchiveMavenRepository.DescriptorImpl.getLabelsS());
@@ -152,7 +139,7 @@ public class Label {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public static List<Label> labelsStringToList(String labels) throws IOException {
 		JSONObject labelsJson = labelsStringToJSON(labels);
 
@@ -165,26 +152,16 @@ public class Label {
 		return l;
 	}
 
-
 	public static JSONObject labelsStringToJSON(String labels) {
 		return (JSONObject) JSONSerializer.toJSON(labels);
 	}
 
-	
 	public String getName() {
 		return name;
 	}
 
-	public void setName(String name) {
-		this.name = name;
-	}
-
 	public String getId() {
 		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
 	}
 
 }
