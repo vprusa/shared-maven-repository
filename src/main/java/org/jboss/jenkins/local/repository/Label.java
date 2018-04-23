@@ -34,20 +34,43 @@ public class Label {
 
 	private static String resourcesLabelsPath = "/defaultLabels.json";
 
-	private String name;
 	private String id;
-	private FilePath latestRepoFile;
+	private String name;
 
-	public Label(String id, String name) {
-		this.name = name;
-		this.id = id;
+	private FilePath latestRepoFileDownload;
+	private FilePath latestRepoFileArchive;
+
+	private String downloadPath;
+
+	public String getDownloadPath() {
+		return downloadPath;
 	}
 
-	public FilePath getLatestRepoFile() throws IOException, InterruptedException {
-		if(latestRepoFile != null && latestRepoFile.exists()) {
-			return latestRepoFile;
+	private String archivePath;
+
+	public String getArchivePath() {
+		return archivePath;
+	}
+
+	public Label(String id, String name, String downloadPath, String archivePath) {
+		this.name = name;
+		this.id = id;
+		this.downloadPath = downloadPath;
+		this.archivePath = archivePath;
+	}
+
+	public FilePath getLatestRepoFileArchive() throws IOException, InterruptedException {
+		if (latestRepoFileArchive != null && latestRepoFileArchive.exists()) {
+			return latestRepoFileArchive;
 		}
-		return latestRepoFile = MasterMavenRepository.getLatestRepo(this);
+		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, true);
+	}
+	
+	public FilePath getLatestRepoFileDownload() throws IOException, InterruptedException {
+		if (latestRepoFileDownload != null && latestRepoFileDownload.exists()) {
+			return latestRepoFileDownload;
+		}
+		return latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, false);
 	}
 
 	public static Label getUsedLabelById(String label) {
@@ -146,7 +169,9 @@ public class Label {
 		List<Label> l = new ArrayList<Label>();
 
 		((Collection<String>) (Collection<?>) labelsJson.keySet()).stream().forEach(key -> {
-			l.add(new Label(key, (String) labelsJson.get(key)));
+			JSONObject label = labelsJson.getJSONObject(key);
+			l.add(new Label(key, label.getJSONObject("name").toString(), label.getJSONObject("downloadPath").toString(),
+					label.getJSONObject("archivePath").toString()));
 		});
 
 		return l;

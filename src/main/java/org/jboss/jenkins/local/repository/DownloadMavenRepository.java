@@ -68,7 +68,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 						.println("Jenkins master does not have any maven repository for label " + usedLabelId);
 				return;
 			}
-			FilePath repoFile = usedLabel.getLatestRepoFile();
+			FilePath repoFile = usedLabel.getLatestRepoFileDownload();
 			if (repoFile == null) {
 				listener.getLogger().println("Jenkins master does not have any maven repository");
 				return;

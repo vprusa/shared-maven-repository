@@ -1,3 +1,25 @@
 {
-	"default": "default"
+	"default": {
+		"name": "default"
+	},
+	"default-regex": {
+		"name": "default-regex",
+		"downloadPath": ".*\\.repository/*", 
+		"archivePath": "/tmp/regex-repository"
+	},
+	"default-m2-repository": {
+		"name": "default-m2-repository",
+		"downloadPath": "./.m2/.repository", 
+		"archivePath": "/tmp/repository"
+	},
+	"default-workspace-root": {
+		"name": "default-workspace-root",
+		"downloadPath": "{workspace}", 
+		"archivePath": "{jenkinsRoot}"
+	},
+	"default-user-home": {
+		"name": "default-user-root",
+		"downloadPath": "/home/{user}", 
+		"archivePath": "{jenkinsRoot}"
+	}
 }

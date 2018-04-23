@@ -37,8 +37,17 @@ public class MasterMavenRepository {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
 			listener.getLogger().println("Upload " + repositoryTar.absolutize().toURI() + " to Jenkins master");
-			FilePath masterRepo = new FilePath(
-					new File(new File(repositoriesDir, label.getId()), repositoryTar.getName()));
+
+			String path;
+
+			if (label.getArchivePath() == null) {
+				path = repositoriesDir + "/" + label.getId();
+			} else {
+				// TODO handle more
+				path = label.getArchivePath();
+			}
+
+			FilePath masterRepo = new FilePath(new File(new File(path), repositoryTar.getName()));
 			repositoryTar.copyTo(masterRepo);
 			listener.getLogger().println("Repository uploaded to " + masterRepo.absolutize().toURI());
 			deleteOldRepositories(listener, label);
@@ -51,7 +60,7 @@ public class MasterMavenRepository {
 		if (repositories != null) {
 			for (File repo : repositories) {
 				String repoName = repo.getName();
-				if (!repoName.equals(label.getLatestRepoFile().getName())) {
+				if (!repoName.equals(label.getLatestRepoFileArchive().getName())) {
 					boolean deleted = repo.delete();
 					if (!deleted) {
 						listener.getLogger().println("Unable to delete old repository " + repoName);
@@ -63,10 +72,23 @@ public class MasterMavenRepository {
 		}
 	}
 
-	public static FilePath getLatestRepo(Label label) {
-		if(repositoriesDir == null)
+	/**
+	 * 
+	 * archiveOrDownload == true getArchivePath else
+	 */
+	public static FilePath getLatestRepo(Label label, boolean archiveOrDownload) {
+		if (repositoriesDir == null)
 			getInstance();
-		File repositoriesLabelDir = new File(repositoriesDir, label.getId());
+
+		String defaultPath = repositoriesDir + "/" + label.getId();
+
+		String path = archiveOrDownload ? (label.getArchivePath() == null ? defaultPath : label.getArchivePath())
+				: (label.getDownloadPath() == null ? defaultPath : label.getDownloadPath());
+
+		File repositoriesLabelDir = new File(path);
+		if (repositoriesLabelDir == null || !repositoriesLabelDir.exists()) {
+			return null;
+		}
 		File lastModifiedFile = lastFileModified(repositoriesLabelDir);
 		if (lastModifiedFile == null) {
 			return null;
