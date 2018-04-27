@@ -24,6 +24,9 @@ import jenkins.model.Jenkins;
 
 public class Label {
 
+	public static boolean GET_LATEST_ARCHIVE = true;
+	public static boolean GET_LATEST_DOWNLOAD = false;
+
 	private static final Logger log = Logger.getLogger(Label.class.getName());
 
 	private static String labelsPath = "";
@@ -59,18 +62,18 @@ public class Label {
 		this.archivePath = archivePath;
 	}
 
-	public FilePath getLatestRepoFileArchive() throws IOException, InterruptedException {
+	public FilePath getLatestRepoFileArchive(FilePath workspace) throws IOException, InterruptedException {
 		if (latestRepoFileArchive != null && latestRepoFileArchive.exists()) {
 			return latestRepoFileArchive;
 		}
-		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, true);
+		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace, GET_LATEST_ARCHIVE);
 	}
-	
-	public FilePath getLatestRepoFileDownload() throws IOException, InterruptedException {
+
+	public FilePath getLatestRepoFileDownload(FilePath workspace) throws IOException, InterruptedException {
 		if (latestRepoFileDownload != null && latestRepoFileDownload.exists()) {
 			return latestRepoFileDownload;
 		}
-		return latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, false);
+		return latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, workspace, GET_LATEST_DOWNLOAD);
 	}
 
 	public static Label getUsedLabelById(String label) {
@@ -169,9 +172,18 @@ public class Label {
 		List<Label> l = new ArrayList<Label>();
 
 		((Collection<String>) (Collection<?>) labelsJson.keySet()).stream().forEach(key -> {
-			JSONObject label = labelsJson.getJSONObject(key);
-			l.add(new Label(key, label.getJSONObject("name").toString(), label.getJSONObject("downloadPath").toString(),
-					label.getJSONObject("archivePath").toString()));
+			if (labelsJson.has(key)) {
+				Object obj = labelsJson.get(key);
+				if (obj instanceof String) {
+					l.add(new Label(key, (String) obj, null, null));
+				} else if (obj instanceof JSONObject) {
+					JSONObject label = (JSONObject) obj; // labelsJson.getJSONObject(key);
+					l.add(new Label(key, label.getString("name"),
+							label.has("downloadPath") ? label.getString("downloadPath") : null,
+							label.has("archivePath") ? label.getString("archivePath") : null));
+				}
+			}
+
 		});
 
 		return l;

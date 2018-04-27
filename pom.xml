@@ -28,9 +28,9 @@
 		<truezip.version>7.7.10</truezip.version>
 	</properties>
 
-	<name>TODO Plugin</name>
-	<description>TODO</description>
-	<url>https://wiki.jenkins-ci.org/display/JENKINS/TODO+Plugin</url>
+	<name>shared-maven-repository</name>
+	<description>shared-maven-repository</description>
+	<url>https://github.com/rawagner/shared-maven-repository</url>
 
 	<!-- The default licence for Jenkins OSS Plugins is MIT. Substitute for 
 		the applicable one if needed. -->

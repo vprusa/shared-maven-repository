@@ -59,7 +59,8 @@ public class UIDefaultTests {
 				"Use label",
 				"job/" + projectName
 						+ "/descriptorByName/org.jboss.jenkins.local.repository.DownloadMavenRepository/fillUsedLabelItems",
-				"<option label=\"default\" value=\"default\" selected=\"selected\">" };
+				//"<option label=\"default\" value=\"default\" selected=\"selected\">" 
+						"value=\"default\""};
 
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
 
@@ -74,7 +75,8 @@ public class UIDefaultTests {
 				"Use label",
 				"job/" + projectName
 						+ "/descriptorByName/org.jboss.jenkins.local.repository.ArchiveMavenRepository/fillUsedLabelItems",
-				"<option label=\"default\" value=\"default\" selected=\"selected\">" };
+				//"<option label=\"default\" value=\"default\" selected=\"selected\">" 
+						"value=\"default\""};
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
 

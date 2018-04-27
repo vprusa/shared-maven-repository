@@ -201,7 +201,6 @@ public class MavenIntegrationTests {
 	}
 
 	public void waitAndVerifyBuildSuccess(FreeStyleBuild build, Result expected) throws InterruptedException {
-
 		int i = 0;
 		while (i < WAIT_SECS_LIMIT && !build.getResult().isBetterOrEqualTo(expected)) {
 			// TODO better solution
@@ -213,8 +212,10 @@ public class MavenIntegrationTests {
 				+ expected.toString(), !build.getResult().isBetterOrEqualTo(expected));
 	}
 
-	public void verifyThatArchiveConstainsTestFile(Label label) throws IOException, InterruptedException {
-		FilePath path = label.getLatestRepoFile();
+	public void verifyThatArchiveConstainsTestFile(Label label, boolean archiveOrDownload) throws IOException, InterruptedException {
+		FilePath workspace = project.getSomeWorkspace(); // getWorkspace();
+		FilePath path = archiveOrDownload ? label.getLatestRepoFileArchive(workspace) : label.getLatestRepoFileDownload(workspace);
+				 
 		String tmpUnzippedTestPath = tmpUnzippedPath + "/.repository/" + testFileName;
 		File unzipTest = new File(tmpUnzippedPath);
 
@@ -224,7 +225,7 @@ public class MavenIntegrationTests {
 		unzipTest.mkdirs();
 
 		path.unzip(new FilePath(unzipTest));
-		assertTrue("Test file does not exists in unzipped directory. Label path: " + label.getLatestRepoFile()
+		assertTrue("Test file does not exists in unzipped directory. Label path: " + (archiveOrDownload ? label.getLatestRepoFileArchive(workspace) : label.getLatestRepoFileDownload(workspace))
 				+ " , file path: " + tmpUnzippedTestPath, new File(tmpUnzippedTestPath).exists());
 	}
 
@@ -236,7 +237,7 @@ public class MavenIntegrationTests {
 		project.save();
 
 		prepareStartAndVerifySuccessful(buildsCount);
-		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA));
+		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA) , Label.GET_LATEST_ARCHIVE);
 	}
 
 }

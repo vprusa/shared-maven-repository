@@ -62,6 +62,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 			listener.getLogger().println("Archive private maven repository");
 			Label label = Label.getUsedLabelById(getUsedLabel());
 			if (label != null) {
+
 				List<FilePath> files = workspace.list();
 				for (FilePath file : files) {
 					if (file.isDirectory() && file.getName().equals(".repository")) {
@@ -83,7 +84,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 							repoOutputStream.close();
 						}
 
-						MasterMavenRepository.getInstance().uploadRepository(repoFile, listener, label);
+						MasterMavenRepository.getInstance().uploadRepository(repoFile, workspace, listener, label);
 						return;
 					}
 				}
