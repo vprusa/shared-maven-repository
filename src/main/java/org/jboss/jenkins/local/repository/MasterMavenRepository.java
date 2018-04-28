@@ -102,6 +102,7 @@ public class MasterMavenRepository {
 		
 		String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
 		String jobWorkspacePath = workspace.getRemote(); // workspace
+		//String slaveName = workspace.getSlgetRemote(); // workspace
 		
 		path = path.replace("{workspace}", jobWorkspacePath).replace("{jenkinsRoot}", jenkinsRootPath);
 
