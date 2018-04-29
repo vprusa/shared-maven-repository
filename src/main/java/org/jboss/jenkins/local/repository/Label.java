@@ -39,8 +39,17 @@ public class Label {
 
 	private String id;
 	private String name;
+	private boolean isM2Repo;
 
-	private FilePath latestRepoFileDownload;
+	public boolean isM2Repo() {
+		return isM2Repo;
+	}
+
+	public void setM2Repo(boolean isM2Repo) {
+		this.isM2Repo = isM2Repo;
+	}
+
+	// private FilePath latestRepoFileDownload;
 	private FilePath latestRepoFileArchive;
 
 	private String downloadPath;
@@ -55,27 +64,50 @@ public class Label {
 		return archivePath;
 	}
 
-	public Label(String id, String name, String downloadPath, String archivePath) {
+	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo) {
 		this.name = name;
 		this.id = id;
 		this.downloadPath = downloadPath;
 		this.archivePath = archivePath;
+		this.isM2Repo = isM2Repo;
+	}
+
+	public static String decorate(String path, FilePath workspace) {
+		if (path == null) {
+			return null;
+		}
+		String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
+		String jobWorkspacePath = workspace.getRemote(); // workspace
+		// String slaveName = workspace.getSlgetRemote(); // slave
+		return path.replace("{workspace}", jobWorkspacePath).replace("{jenkinsRoot}", jenkinsRootPath);
+	}
+
+	public FilePath getDownloadFilePath(FilePath workspace) throws IOException, InterruptedException {
+		if (getDownloadPath() == null)
+			return null;
+		return new FilePath(new File(Label.decorate(getDownloadPath(), workspace)));
+	}
+
+	public FilePath getArchiveFilePath(FilePath workspace) throws IOException, InterruptedException {
+		if (getArchivePath() == null)
+			return null;
+		return new FilePath(new File(Label.decorate(getArchivePath(), workspace)));
 	}
 
 	public FilePath getLatestRepoFileArchive(FilePath workspace) throws IOException, InterruptedException {
 		if (latestRepoFileArchive != null && latestRepoFileArchive.exists()) {
 			return latestRepoFileArchive;
 		}
-		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace, GET_LATEST_ARCHIVE);
+		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace);
 	}
 
-	public FilePath getLatestRepoFileDownload(FilePath workspace) throws IOException, InterruptedException {
-		if (latestRepoFileDownload != null && latestRepoFileDownload.exists()) {
-			return latestRepoFileDownload;
-		}
-		return latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, workspace, GET_LATEST_DOWNLOAD);
-	}
-
+	/*
+	 * public FilePath getLatestRepoFileDownload(FilePath workspace) throws
+	 * IOException, InterruptedException { if (latestRepoFileDownload != null &&
+	 * latestRepoFileDownload.exists()) { return latestRepoFileDownload; } return
+	 * latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, workspace,
+	 * GET_LATEST_DOWNLOAD); }
+	 */
 	public static Label getUsedLabelById(String label) {
 		return Label.getListInstances().stream().filter(l -> l.getId().matches(label)).findAny().orElse(null);
 	}
@@ -85,7 +117,8 @@ public class Label {
 		// return (labelsStatic == null ? (labelsStatic = (ArrayList<Label>)
 		// loadFromFile()) : labelsStatic);
 		try {
-			return (ArrayList<Label>) labelsStringToList(ArchiveMavenRepository.DescriptorImpl.getLabelsS());
+			String str = ArchiveMavenRepository.DescriptorImpl.getLabelsS();
+			return (ArrayList<Label>) labelsStringToList(str);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -144,9 +177,13 @@ public class Label {
 	}
 
 	public static String loadStringFromFile() throws IOException {
-		if (labelsPath.isEmpty()) {
-			String configFileName = Jenkins.getInstance().getRootDir().getAbsolutePath()
-					+ "/shared-maven-repository/config.json";
+		return loadStringFromFile(
+				Jenkins.getInstance().getRootDir().getAbsolutePath() + "/shared-maven-repository/config.json");
+	}
+
+	public static String loadStringFromFile(String path) throws IOException {
+		if (labelsPath.isEmpty() || !labelsPath.matches(path)) {
+			String configFileName = path;
 			File configFile = new File(configFileName);
 
 			if (!configFile.exists()) {
@@ -175,12 +212,12 @@ public class Label {
 			if (labelsJson.has(key)) {
 				Object obj = labelsJson.get(key);
 				if (obj instanceof String) {
-					l.add(new Label(key, (String) obj, null, null));
+					l.add(new Label(key, (String) obj, null, null, false));
 				} else if (obj instanceof JSONObject) {
 					JSONObject label = (JSONObject) obj; // labelsJson.getJSONObject(key);
 					l.add(new Label(key, label.getString("name"),
 							label.has("downloadPath") ? label.getString("downloadPath") : null,
-							label.has("archivePath") ? label.getString("archivePath") : null));
+							label.has("archivePath") ? label.getString("archivePath") : null, label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false));
 				}
 			}
 
@@ -199,6 +236,26 @@ public class Label {
 
 	public String getId() {
 		return id;
+	}
+
+	@Override
+	public String toString() {
+		return "Label-Id: " + getId() + ";Name:" + getName() + ";Archive:" + this.getArchivePath() + ";Download:"
+				+ getDownloadPath();
+	}
+	
+	public static void deleteDir(File folder) {
+	    File[] files = folder.listFiles();
+	    if(files!=null) { //some JVMs return null for empty dirs
+	        for(File f: files) {
+	            if(f.isDirectory()) {
+	                deleteDir(f);
+	            } else {
+	                f.delete();
+	            }
+	        }
+	    }
+	    folder.delete();
 	}
 
 }

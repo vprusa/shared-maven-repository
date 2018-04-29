@@ -1,6 +1,7 @@
 package org.jboss.jenkins.local.repository;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -63,31 +64,56 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 			Label label = Label.getUsedLabelById(getUsedLabel());
 			if (label != null) {
 
-				List<FilePath> files = workspace.list();
-				for (FilePath file : files) {
-					if (file.isDirectory() && file.getName().equals(".repository")) {
-						listener.getLogger().println("Found .repository folder");
-						FilePath repoFile = new FilePath(workspace,
-								"repository-" + UUID.randomUUID().toString() + ".zip");
-						if (!repoFile.exists()) {
-							repoFile.touch(new Date().getTime());
-							listener.getLogger().println("Created empty zip " + repoFile.toURI());
-						}
-						RepoFileFilter filter = new RepoFileFilter();
-						filter.preparePath(new File(file.toURI()));
-						OutputStream repoOutputStream = repoFile.write();
-						try {
-							listener.getLogger().println("Fill archive " + repoFile.toURI());
-							file.archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
-							listener.getLogger().println("Done!");
-						} finally {
-							repoOutputStream.close();
-						}
+				listener.getLogger()
+						.println("Found files for path: " + Label.decorate(label.getDownloadPath(), workspace));
+				FilePath archivedLocalFile;
+				// if (label.getArchivePath().endsWith(".zip")) {
+				// is file exists so create new one next to this with different unique name
+				// archivedFile = new FilePath(label.getArchiveFilePath(workspace).getParent(),
+				// label.getArchiveFilePath(workspace).getBaseName() +
+				// UUID.randomUUID().toString() + ".zip");
 
-						MasterMavenRepository.getInstance().uploadRepository(repoFile, workspace, listener, label);
-						return;
-					}
+				// "file-" + UUID.randomUUID().toString() + ".zip");
+				// } else
+				if (label.getArchiveFilePath(workspace).isDirectory()) {
+					// is dir so create new zip with unique name in this dir
+					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace).getParent(),
+							"archived-" + UUID.randomUUID().toString() + ".zip");
+				} else {
+					// is file so create new file next to old one
+					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace).getParent(),
+							label.getArchiveFilePath(workspace).getBaseName() + "-archived-"
+									+ UUID.randomUUID().toString() + ".zip");
 				}
+
+				if (!archivedLocalFile.exists()) {
+					archivedLocalFile.touch(new Date().getTime());
+					listener.getLogger().println("Created empty zip " + archivedLocalFile.toURI());
+				}
+				FileFilter filter;
+				if (label.isM2Repo()) {
+					RepoFileFilter repoFilter = new RepoFileFilter();
+					repoFilter.preparePath(new File(label.getDownloadFilePath(workspace).toURI()));
+					filter = repoFilter;
+				} else {
+					filter = new FileFilter() {
+						@Override
+						public boolean accept(File pathname) {
+							return true;
+						}
+					};
+				}
+				OutputStream repoOutputStream = archivedLocalFile.write();
+				try {
+					listener.getLogger().println("Fill archive " + archivedLocalFile.toURI());
+					label.getDownloadFilePath(workspace).archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
+					listener.getLogger().println("Done!");
+				} finally {
+					repoOutputStream.close();
+				}
+
+				MasterMavenRepository.getInstance().uploadRepository(archivedLocalFile, workspace, listener, label);
+				return;
 			}
 			listener.getLogger().println(".repository folder not found");
 		}

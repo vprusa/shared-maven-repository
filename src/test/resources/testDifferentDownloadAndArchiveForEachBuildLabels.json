@@ -1,0 +1,22 @@
+{
+	"download1": {
+		"name": "download1",
+		"downloadPath": "{workspace}/repository/download1", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/download1"
+	},
+	"archive1": {
+		"name": "archive1",
+		"downloadPath": "{workspace}/repository/archive1", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/archive1"
+	},
+	"download2": {
+		"name": "download2",
+		"downloadPath": "{workspace}/repository/download2", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/download2"
+	},
+	"archive2": {
+		"name": "archive2",
+		"downloadPath": "{workspace}/repository/archive2", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/archive2"
+	}
+}

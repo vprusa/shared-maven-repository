@@ -1,21 +1,23 @@
 {
 	"default": {
-		"name": "default"
+		"name": "default",
+		"downloadPath": "{workspace}/repository", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/repository.zip"
 	},
 	"default-m2-repository": {
 		"name": "default-m2-repository",
 		"downloadPath": "./.m2/.repository", 
-		"archivePath": "/tmp/repository"
+		"archivePath": "/tmp/repository.zip",
+		"isM2Repo": true
 	},
 	"default-workspace-root": {
 		"name": "default-workspace-root",
 		"downloadPath": "{workspace}", 
-		"archivePath": "{jenkinsRoot}"
+		"archivePath": "{jenkinsRoot}/archive.zip"
 	},
 	"default-slaveName-root": {
 		"name": "default-workspace-root",
 		"downloadPath": "{slaveName}", 
-		"archivePath": "{jenkinsRoot}"
+		"archivePath": "{jenkinsRoot}/archive.zip"
 	}
-}
 }

@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
@@ -25,6 +26,7 @@ import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
+import jenkins.model.Jenkins;
 
 /**
  * These tests cover scenarios following patter:
@@ -38,43 +40,6 @@ import hudson.model.Result;
 public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 
 	private static final Logger log = Logger.getLogger(MavenIntegrationTestsSimple.class.getName());
-
-	@Rule
-	public JenkinsRule j = new JenkinsRule();
-
-	@Before
-	public void before() throws IOException, InterruptedException {
-		super.before();
-	}
-
-	@After
-	public void after() throws IOException, InterruptedException {
-		super.after();
-	}
-
-	/**
-	 * default-workspace-root
-	 */
-	@Test
-	@WithRemoveDuplicatedPlugin("shared-maven-repository")
-	public void testDefaultDownloadAndArchiveForWorkspaceAndRootPaths()
-			throws IOException, InterruptedException, ExecutionException, SAXException {
-		String usedLabel = "label";
-		String downloadPath = j.jenkins.getRootPath() + "/workspace/" + projectName;
-		String archivePath = tmpArchivePath + "/";
-
-		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
-				+ "','downloadPath':' " + downloadPath + "','archivePath':'" + archivePath + "'}}");
-		Label.saveLabels();
-
-		assertFalse("Mehotd Label.getLabelsPath() should return empty value by now", Label.getLabelsPath().isEmpty());
-		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
-				(new File(Label.getLabelsPath()).exists()));
-
-		// here new labels should be updated in configuration
-
-		configureBildAndVerify(2, usedLabel, usedLabel);
-	}
 
 	/**
 	 * verify multiple builds with changed labels - 2x(archive(1) - download(1)) -
@@ -90,10 +55,20 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 		String usedLabel2D = "download2";
 		String usedLabel2A = "archive2";
 
-		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'default':'default', '" + usedLabel1D + "':'" + usedLabel1D
-				+ "','" + usedLabel1A + "':'" + usedLabel1A + "', '" + usedLabel2D + "':'" + usedLabel2D + "','"
-				+ usedLabel2A + "':'" + usedLabel2A + "'}");
-		Label.saveLabels();
+		long timestmap = new Date().getTime();
+		FilePath jenkinsRootPath = j.jenkins.getRootPath();
+		File willBeWorkspace = new File(jenkinsRootPath.getRemote() + "/workspace/" + projectName);
+		FilePath workspace = new FilePath(new FilePath(willBeWorkspace), "repository");
+		workspace.mkdirs();
+		new FilePath(workspace, usedLabel1D).touch(timestmap);
+		FilePath usedArchive1 = new FilePath(workspace, usedLabel1A);
+		usedArchive1.touch(timestmap);
+		new FilePath(workspace, usedLabel2D).touch(timestmap);
+		FilePath usedArchive2 = new FilePath(workspace, usedLabel2A);
+		usedArchive2.touch(timestmap);
+
+		String testConfigFileName = "testDifferentDownloadAndArchiveForEachBuildLabels.json";
+		String config = loadTestConfig(testConfigFileName);
 
 		assertFalse("Mehotd Label.getLabelsPath() should return empty value by now", Label.getLabelsPath().isEmpty());
 		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
@@ -101,10 +76,12 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 
 		// here new labels should be updated in configuration
 
+		testFileName = usedArchive1.getBaseName();
+		testFileDir = "";
+
 		configureBildAndVerify(2, usedLabel1D, usedLabel1A);
 
-		testFileName = "test-" + UUID.randomUUID().toString() + ".txt";
-
+		testFileName = usedArchive2.getBaseName();
 		configureBildAndVerify(2, usedLabel2D, usedLabel2A);
 	}
 
@@ -116,9 +93,20 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 		String usedLabelD = "download";
 		String usedLabelA = "archive";
 
-		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'default':'default', '" + usedLabelD + "':'" + usedLabelD
-				+ "','" + usedLabelA + "':'" + usedLabelA + "'}");
-		Label.saveLabels();
+
+		long timestmap = new Date().getTime();
+		FilePath jenkinsRootPath = j.jenkins.getRootPath();
+		File willBeWorkspace = new File(jenkinsRootPath.getRemote() + "/workspace/" + projectName);
+		FilePath workspace = new FilePath(new FilePath(willBeWorkspace), "repository");
+		workspace.mkdirs();
+		new FilePath(workspace, usedLabelD).touch(timestmap);
+		FilePath usedArchive = new FilePath(workspace, usedLabelA);
+		usedArchive.touch(timestmap);
+
+
+		
+		String testConfigFileName = "testDifferentDownloadAndArchiveLabels.json";
+		String config = loadTestConfig(testConfigFileName);
 
 		assertFalse("Mehotd Label.getLabelsPath() should return empty value by now", Label.getLabelsPath().isEmpty());
 		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
@@ -126,6 +114,9 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 
 		// here new labels should be updated in configuration
 
+		testFileName = usedArchive.getBaseName();
+		testFileDir = "";
+		
 		configureBildAndVerify(2, usedLabelD, usedLabelA);
 	}
 

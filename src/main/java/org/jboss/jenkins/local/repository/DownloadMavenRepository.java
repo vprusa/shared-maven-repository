@@ -1,6 +1,8 @@
 package org.jboss.jenkins.local.repository;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -52,15 +54,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
-			listener.getLogger().println("Download maven repository from Jenkins master");
-			FilePath jobRepo = new FilePath(workspace, "repository.zip");
-			if (jobRepo.exists()) {
-				listener.getLogger().println(jobRepo.getName() + " already exists, delete.");
-				boolean deleted = jobRepo.delete();
-				if (!deleted) {
-					listener.error("Unable to delete repository.zip");
-				}
-			}
+	
 			String usedLabelId = getUsedLabel();
 			Label usedLabel = Label.getUsedLabelById(usedLabelId);
 			if (usedLabel == null) {
@@ -68,18 +62,94 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 						.println("Jenkins master does not have any maven repository for label " + usedLabelId);
 				return;
 			}
-			FilePath repoFile = usedLabel.getLatestRepoFileDownload(workspace);
-			if (repoFile == null) {
-				listener.getLogger().println("Jenkins master does not have any maven repository");
+			
+			listener.getLogger()
+			.println("Downloading files for label: " + usedLabel.toString());
+			FilePath downloadDest = usedLabel.getDownloadFilePath(workspace);
+			// remove old zip
+
+			FilePath downloadZipFile = new FilePath(downloadDest.getParent(), "file.zip");
+			/*
+			if(downloadDest.isDirectory()) {
+				downloadZipFile = new FilePath(downloadDest.getParent(), "file.zip");
+			}else {
+				downloadZipFile = downloadDest.getParent();
+			}
+			*/
+			if (downloadZipFile.exists()) {
+				listener.getLogger().println(downloadZipFile.getRemote() + " already exists, delete.");
+				boolean deleted = downloadZipFile.delete();
+				if (!deleted) {
+					listener.error("Unable to delete file: " + downloadZipFile.getRemote());
+				}
+			}	
+			FilePath archivedFile = usedLabel.getArchiveFilePath(workspace); 
+			//usedLabel.getDownloadFilePath(workspace);
+			//usedLabel.getLatestRepoFileDownload(workspace);
+		
+			FilePath archivedZipFile = usedLabel.getLatestRepoFileArchive(workspace);
+			
+			if (archivedFile == null || !archivedFile.exists() || archivedZipFile == null || !archivedZipFile.exists() ) {
+				listener.getLogger().println("Jenkins does not have any file with path: " + archivedFile.getRemote());
 				return;
 			}
-			repoFile.copyTo(jobRepo);
-			jobRepo.unzip(workspace);
+		/*	
+			listener.getLogger().println("archivedZipFile");
+			listener.getLogger().println(archivedZipFile);
+			listener.getLogger().println("downloadZipFile");
+			listener.getLogger().println(downloadZipFile);
+			listener.getLogger().println("downloadDest");
+			listener.getLogger().println(downloadDest);
+			*/
+			archivedZipFile.copyTo(downloadZipFile);
+			//new File(downloadZipFile.getParent().getRemote(), "file.zip").
+			//new File(downloadZipFile.getParent().getRemote(), archivedZipFile.getName()).renameTo(new File(downloadZipFile.getRemote()));
+			
+			Label.deleteDir(new File(downloadDest.getRemote()));
+			//downloadDest.mkdirs();
+			downloadZipFile.unzip(downloadDest.getParent());
 			listener.getLogger().println("Jenkins master repository unzipped.");
+			/*
+			FilePath downloadFile;
+			if (usedLabel.getDownloadPath().endsWith("/")) {
+				// is dir so create new zip with unique name in this dir
+				downloadFile = new FilePath(usedLabel.getDownloadFilePath(workspace),
+						"file.zip");
+			} else {
+				// is file so create new file next to old one
+				downloadFile = new FilePath(usedLabel.getDownloadFilePath(workspace).getParent(),
+						usedLabel.getDownloadFilePath(workspace).getBaseName() + "-" + UUID.randomUUID().toString() + ".zip");
+			}
+			
+			FilePath archiveFile = usedLabel.getDownloadFilePath(workspace);//usedLabel.getLatestRepoFileDownload(workspace);
+			listener.getLogger().println("Jenkins does not have any file with path: " + archiveFile.getRemote());
+			if (archiveFile == null || !archiveFile.exists()) {
+				listener.getLogger().println("Jenkins does not have any file with path: " + archiveFile.getRemote());
+				return;
+			}
+			
+			listener.getLogger().println("Download maven repository");
+			//FilePath downloadFile = usedLabel.getDownloadFilePath(workspace); //new FilePath(usedLabel.getDownloadFilePath(workspace) , "file.zip");
+			// todo store zip into parent folder if exists - it should
+			FilePath downloadZipFile = new FilePath(downloadFile.getParent(), "file.zip");
+			if (downloadZipFile.exists()) {
+				listener.getLogger().println(downloadZipFile.getRemote() + " already exists, delete.");
+				boolean deleted = downloadZipFile.delete();
+				if (!deleted) {
+					listener.error("Unable to delete file: " + downloadZipFile.getRemote());
+				}
+			}
+			
+			archiveFile.copyTo(downloadZipFile);
+			downloadZipFile.unzip(downloadFile);
+			listener.getLogger().println("Jenkins master repository unzipped.");
+			*/
 		}
 
 	}
 
+
+	
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 

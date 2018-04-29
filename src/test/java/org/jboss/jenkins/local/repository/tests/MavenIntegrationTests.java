@@ -39,23 +39,8 @@ public class MavenIntegrationTests  extends MavenIntegrationTestsBase {
 
 	private static final Logger log = Logger.getLogger(MavenIntegrationTests.class.getName());
 
-	String tmpArchivePath = "/tmp/jenkins/archive";
+	String tmpArchivePath = "/tmp/jenkins/archive.zip";
 
-	//@Rule
-	//public JenkinsRule j = new JenkinsRule();
-
-	/*
-	@Before
-	public void before() throws IOException, InterruptedException {
-		super.before();
-	}
-
-	@After
-	public void after() throws IOException, InterruptedException {
-		super.after();
-	}
-	 */
-	
 	/**
 	 * default-workspace-root
 	 */
@@ -64,14 +49,14 @@ public class MavenIntegrationTests  extends MavenIntegrationTestsBase {
 	public void testDefaultDownloadAndArchiveForRootPath()
 			throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "label";
-		String downloadPath = "{jenkinsRoot}/workspace/" + projectName;
-		String archivePath = tmpArchivePath + "/";
+		String downloadPath = "{jenkinsRoot}/workspace/" + projectName + "/repository";
+		String archivePath = "/tmp/jenkins/archive/";
+		new File(archivePath).mkdirs();
 
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
-				+ "','downloadPath':' " + downloadPath + "','archivePath':'" + archivePath + "'}}");
-		Label.saveLabels();
+				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath + "'}}");
 
-		assertFalse("Mehotd Label.getLabelsPath() should return empty value by now", Label.getLabelsPath().isEmpty());
+		assertFalse("Mehotd Label.getLabelsPath() should not return empty value by now", Label.getLabelsPath().isEmpty());
 		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
 				(new File(Label.getLabelsPath()).exists()));
 

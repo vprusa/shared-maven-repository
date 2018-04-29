@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import org.jboss.jenkins.local.repository.ArchiveMavenRepository;
 import org.jboss.jenkins.local.repository.DownloadMavenRepository;
 import org.jboss.jenkins.local.repository.Label;
+import org.jboss.jenkins.local.repository.MasterMavenRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -25,6 +26,7 @@ import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
+import jenkins.model.Jenkins;
 
 /**
  * These tests cover scenarios following patter:
@@ -45,6 +47,7 @@ public class MavenIntegrationTestsBase {
 	final int WAIT_SECS_LIMIT = 10;
 
 	String testFileName = "test.txt";
+	String testFileDir = "repository/";
 	String tmpUnzippedPath = "/tmp/jenkins/unzipped";
 	String tmpArchivePath = "/tmp/jenkins/archive";
 
@@ -54,7 +57,10 @@ public class MavenIntegrationTestsBase {
 	@Before
 	public void before() throws IOException, InterruptedException {
 		log.info("Preparing for test");
-
+		
+		Label.deleteDir(new File(tmpUnzippedPath));
+		Label.deleteDir(new File(tmpArchivePath));
+		
 		testFileName = "test-" + UUID.randomUUID().toString() + ".txt";
 
 		wc = j.createWebClient();
@@ -67,13 +73,14 @@ public class MavenIntegrationTestsBase {
 	public void after() throws IOException, InterruptedException {
 		wc.close();
 		project.delete();
+
 	}
 
 	public ArrayList<FreeStyleBuild> prepareStartAndVerifySuccessful(int buildsCount)
 			throws IOException, SAXException, InterruptedException, ExecutionException {
 
 		File projectWorkspace = new File(j.jenkins.getRootPath() + "/workspace/" + projectName);
-		File projectWorkspaceRepository = new File(projectWorkspace, ".repository");
+		File projectWorkspaceRepository = new File(projectWorkspace, "repository");
 
 		projectWorkspaceRepository.mkdirs();
 
@@ -103,13 +110,11 @@ public class MavenIntegrationTestsBase {
 				+ expected.toString(), !build.getResult().isBetterOrEqualTo(expected));
 	}
 
-	public void verifyThatArchiveConstainsTestFile(Label label, boolean archiveOrDownload)
-			throws IOException, InterruptedException {
+	public void verifyThatArchiveConstainsTestFile(Label label) throws IOException, InterruptedException {
 		FilePath workspace = project.getSomeWorkspace(); // getWorkspace();
-		FilePath path = archiveOrDownload ? label.getLatestRepoFileArchive(workspace)
-				: label.getLatestRepoFileDownload(workspace);
+		FilePath path = label.getLatestRepoFileArchive(workspace);
 
-		String tmpUnzippedTestPath = tmpUnzippedPath + "/.repository/" + testFileName;
+		String tmpUnzippedTestPath = tmpUnzippedPath + "/" + testFileDir + testFileName;
 		File unzipTest = new File(tmpUnzippedPath);
 
 		if (unzipTest.exists()) {
@@ -120,9 +125,7 @@ public class MavenIntegrationTestsBase {
 		path.unzip(new FilePath(unzipTest));
 		assertTrue(
 				"Test file does not exists in unzipped directory. Label path: "
-						+ (archiveOrDownload ? label.getLatestRepoFileArchive(workspace)
-								: label.getLatestRepoFileDownload(workspace))
-						+ " , file path: " + tmpUnzippedTestPath,
+						+ label.getLatestRepoFileArchive(workspace) + " , file path: " + tmpUnzippedTestPath,
 				new File(tmpUnzippedTestPath).exists());
 	}
 
@@ -134,7 +137,17 @@ public class MavenIntegrationTestsBase {
 		project.save();
 
 		prepareStartAndVerifySuccessful(buildsCount);
-		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA), Label.GET_LATEST_ARCHIVE);
+		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA));
+	}
+
+	public String loadTestConfig(String testConfigFileName) throws IOException {
+		File newConfig = new File(Jenkins.getInstance().getRootDir(), "/shared-maven-repository/" + testConfigFileName);
+		Label.copyResourceTo("/" + testConfigFileName, newConfig.getAbsolutePath(), true);
+		String jsonConfigFile = Label.loadStringFromFile(newConfig.getAbsolutePath());
+		log.info("Json config file: " + jsonConfigFile);
+		ArchiveMavenRepository.DescriptorImpl.setLabelsS(jsonConfigFile);
+		Label.saveLabels();
+		return jsonConfigFile;
 	}
 
 }

@@ -1,0 +1,12 @@
+{
+	"download": {
+		"name": "download",
+		"downloadPath": "{workspace}/repository/download", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/download.zip"
+	},
+	"archive": {
+		"name": "archive",
+		"downloadPath": "{workspace}/repository/archive", 
+		"archivePath": "{jenkinsRoot}/shared-maven-repository/archive.zip"
+	}
+}
