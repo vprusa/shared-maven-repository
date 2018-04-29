@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -14,6 +15,7 @@ import hudson.Launcher;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.remoting.Callable;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ListBoxModel;
@@ -49,12 +51,46 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 		this.usedLabel = usedLabel;
 	}
 
+	class JenkinsSlaveCallable implements Callable<String, IOException> {
+
+		FilePath archivedZipFile;
+		FilePath downloadZipFile;
+		FilePath downloadDest;
+
+		JenkinsSlaveCallable(FilePath archivedZipFile, FilePath downloadZipFile, FilePath downloadDest) {
+			this.archivedZipFile = archivedZipFile;
+			this.downloadZipFile = downloadZipFile;
+			this.downloadDest = downloadDest;
+		}
+
+		@Override
+		public void checkRoles(RoleChecker arg0) throws SecurityException {
+			// TODO Auto-generated method stub
+		}
+
+		@Override
+		public String call() throws IOException {
+
+			try {
+				archivedZipFile.copyTo(downloadZipFile);
+				Label.deleteDir(new File(downloadDest.getRemote()));
+				downloadZipFile.unzip(downloadDest.getParent());
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				return "Failed";
+			}
+
+			return "Done";
+		}
+
+	}
+
 	@Override
 	public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
-	
+
 			String usedLabelId = getUsedLabel();
 			Label usedLabel = Label.getUsedLabelById(usedLabelId);
 			if (usedLabel == null) {
@@ -62,94 +98,40 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 						.println("Jenkins master does not have any maven repository for label " + usedLabelId);
 				return;
 			}
-			
-			listener.getLogger()
-			.println("Downloading files for label: " + usedLabel.toString());
+
+			listener.getLogger().println("Downloading files for label: " + usedLabel.toString());
 			FilePath downloadDest = usedLabel.getDownloadFilePath(workspace);
-			// remove old zip
 
 			FilePath downloadZipFile = new FilePath(downloadDest.getParent(), "file.zip");
-			/*
-			if(downloadDest.isDirectory()) {
-				downloadZipFile = new FilePath(downloadDest.getParent(), "file.zip");
-			}else {
-				downloadZipFile = downloadDest.getParent();
-			}
-			*/
+
 			if (downloadZipFile.exists()) {
 				listener.getLogger().println(downloadZipFile.getRemote() + " already exists, delete.");
 				boolean deleted = downloadZipFile.delete();
 				if (!deleted) {
 					listener.error("Unable to delete file: " + downloadZipFile.getRemote());
 				}
-			}	
-			FilePath archivedFile = usedLabel.getArchiveFilePath(workspace); 
-			//usedLabel.getDownloadFilePath(workspace);
-			//usedLabel.getLatestRepoFileDownload(workspace);
-		
+			}
+			FilePath archivedFile = usedLabel.getArchiveFilePath(workspace);
+
 			FilePath archivedZipFile = usedLabel.getLatestRepoFileArchive(workspace);
-			
-			if (archivedFile == null || !archivedFile.exists() || archivedZipFile == null || !archivedZipFile.exists() ) {
+
+			if (archivedFile == null || !archivedFile.exists() || archivedZipFile == null
+					|| !archivedZipFile.exists()) {
 				listener.getLogger().println("Jenkins does not have any file with path: " + archivedFile.getRemote());
 				return;
 			}
-		/*	
-			listener.getLogger().println("archivedZipFile");
-			listener.getLogger().println(archivedZipFile);
-			listener.getLogger().println("downloadZipFile");
-			listener.getLogger().println(downloadZipFile);
-			listener.getLogger().println("downloadDest");
-			listener.getLogger().println(downloadDest);
-			*/
-			archivedZipFile.copyTo(downloadZipFile);
-			//new File(downloadZipFile.getParent().getRemote(), "file.zip").
-			//new File(downloadZipFile.getParent().getRemote(), archivedZipFile.getName()).renameTo(new File(downloadZipFile.getRemote()));
-			
-			Label.deleteDir(new File(downloadDest.getRemote()));
-			//downloadDest.mkdirs();
-			downloadZipFile.unzip(downloadDest.getParent());
-			listener.getLogger().println("Jenkins master repository unzipped.");
-			/*
-			FilePath downloadFile;
-			if (usedLabel.getDownloadPath().endsWith("/")) {
-				// is dir so create new zip with unique name in this dir
-				downloadFile = new FilePath(usedLabel.getDownloadFilePath(workspace),
-						"file.zip");
-			} else {
-				// is file so create new file next to old one
-				downloadFile = new FilePath(usedLabel.getDownloadFilePath(workspace).getParent(),
-						usedLabel.getDownloadFilePath(workspace).getBaseName() + "-" + UUID.randomUUID().toString() + ".zip");
-			}
-			
-			FilePath archiveFile = usedLabel.getDownloadFilePath(workspace);//usedLabel.getLatestRepoFileDownload(workspace);
-			listener.getLogger().println("Jenkins does not have any file with path: " + archiveFile.getRemote());
-			if (archiveFile == null || !archiveFile.exists()) {
-				listener.getLogger().println("Jenkins does not have any file with path: " + archiveFile.getRemote());
-				return;
-			}
-			
-			listener.getLogger().println("Download maven repository");
-			//FilePath downloadFile = usedLabel.getDownloadFilePath(workspace); //new FilePath(usedLabel.getDownloadFilePath(workspace) , "file.zip");
-			// todo store zip into parent folder if exists - it should
-			FilePath downloadZipFile = new FilePath(downloadFile.getParent(), "file.zip");
-			if (downloadZipFile.exists()) {
-				listener.getLogger().println(downloadZipFile.getRemote() + " already exists, delete.");
-				boolean deleted = downloadZipFile.delete();
-				if (!deleted) {
-					listener.error("Unable to delete file: " + downloadZipFile.getRemote());
-				}
-			}
-			
-			archiveFile.copyTo(downloadZipFile);
-			downloadZipFile.unzip(downloadFile);
-			listener.getLogger().println("Jenkins master repository unzipped.");
-			*/
+
+			// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
+			// Define what should be run on the slave for this build
+			JenkinsSlaveCallable slaveTask = new JenkinsSlaveCallable(archivedZipFile, downloadZipFile, downloadDest);
+
+			// Get a "channel" to the build machine and run the task there
+			String status = launcher.getChannel().call(slaveTask);
+			listener.getLogger().println("Jenkins repository slave execution status: " + status);
 		}
 
 	}
 
-
-	
 	@Extension
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
