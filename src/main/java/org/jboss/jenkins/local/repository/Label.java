@@ -12,11 +12,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
@@ -72,33 +75,48 @@ public class Label {
 		this.isM2Repo = isM2Repo;
 	}
 
-	public static String decorate(String path, FilePath workspace) {
+	public static String decorate(String path, FilePath workspace, EnvVars env) {
 		if (path == null) {
 			return null;
 		}
 		String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
 		String jobWorkspacePath = workspace.getRemote(); // workspace
-		// String slaveName = workspace.getSlgetRemote(); // slave
-		return path.replace("{workspace}", jobWorkspacePath).replace("{jenkinsRoot}", jenkinsRootPath);
+
+		for (Entry<String, String> entry : env.entrySet()) {
+			String value = entry.getValue();
+			String key = entry.getKey();
+			if (path.contains("{^{" + key + "}}")) {
+				path = path.replace("{^{" + key + "}}", value.toUpperCase());
+			}
+			if (path.contains("{!{" + key + "}}")) {
+				path = path.replace("{!{" + key + "}}", value.toLowerCase());
+			}
+			if (path.contains("{{" + key + "}}")) {
+				path = path.replace("{{" + key + "}}", value);
+			}
+		}
+
+		return path.replace("{.{workspace}}", jobWorkspacePath).replace("{{workspace}}", jobWorkspacePath)
+				.replace("{.{jenkinsRoot}}", jenkinsRootPath).replace("{{jenkinsRoot}}", jenkinsRootPath);
 	}
 
-	public FilePath getDownloadFilePath(FilePath workspace) throws IOException, InterruptedException {
+	public FilePath getDownloadFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getDownloadPath() == null)
 			return null;
-		return new FilePath(new File(Label.decorate(getDownloadPath(), workspace)));
+		return new FilePath(new File(Label.decorate(getDownloadPath(), workspace, env)));
 	}
 
-	public FilePath getArchiveFilePath(FilePath workspace) throws IOException, InterruptedException {
+	public FilePath getArchiveFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getArchivePath() == null)
 			return null;
-		return new FilePath(new File(Label.decorate(getArchivePath(), workspace)));
+		return new FilePath(new File(Label.decorate(getArchivePath(), workspace, env)));
 	}
 
-	public FilePath getLatestRepoFileArchive(FilePath workspace) throws IOException, InterruptedException {
+	public FilePath getLatestRepoFileArchive(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (latestRepoFileArchive != null && latestRepoFileArchive.exists()) {
 			return latestRepoFileArchive;
 		}
-		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace);
+		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace, env);
 	}
 
 	/*
@@ -217,7 +235,8 @@ public class Label {
 					JSONObject label = (JSONObject) obj; // labelsJson.getJSONObject(key);
 					l.add(new Label(key, label.getString("name"),
 							label.has("downloadPath") ? label.getString("downloadPath") : null,
-							label.has("archivePath") ? label.getString("archivePath") : null, label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false));
+							label.has("archivePath") ? label.getString("archivePath") : null,
+							label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false));
 				}
 			}
 
@@ -243,19 +262,19 @@ public class Label {
 		return "Label-Id: " + getId() + ";Name:" + getName() + ";Archive:" + this.getArchivePath() + ";Download:"
 				+ getDownloadPath();
 	}
-	
+
 	public static void deleteDir(File folder) {
-	    File[] files = folder.listFiles();
-	    if(files!=null) { //some JVMs return null for empty dirs
-	        for(File f: files) {
-	            if(f.isDirectory()) {
-	                deleteDir(f);
-	            } else {
-	                f.delete();
-	            }
-	        }
-	    }
-	    folder.delete();
+		File[] files = folder.listFiles();
+		if (files != null) { // some JVMs return null for empty dirs
+			for (File f : files) {
+				if (f.isDirectory()) {
+					deleteDir(f);
+				} else {
+					f.delete();
+				}
+			}
+		}
+		folder.delete();
 	}
 
 }

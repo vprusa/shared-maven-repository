@@ -9,6 +9,7 @@ import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -90,7 +91,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
-
+			EnvVars env = build.getEnvironment(listener);
 			String usedLabelId = getUsedLabel();
 			Label usedLabel = Label.getUsedLabelById(usedLabelId);
 			if (usedLabel == null) {
@@ -100,7 +101,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 			}
 
 			listener.getLogger().println("Downloading files for label: " + usedLabel.toString());
-			FilePath downloadDest = usedLabel.getDownloadFilePath(workspace);
+			FilePath downloadDest = usedLabel.getDownloadFilePath(workspace, env);
 
 			FilePath downloadZipFile = new FilePath(downloadDest.getParent(), "file.zip");
 
@@ -111,9 +112,9 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 					listener.error("Unable to delete file: " + downloadZipFile.getRemote());
 				}
 			}
-			FilePath archivedFile = usedLabel.getArchiveFilePath(workspace);
+			FilePath archivedFile = usedLabel.getArchiveFilePath(workspace, env);
 
-			FilePath archivedZipFile = usedLabel.getLatestRepoFileArchive(workspace);
+			FilePath archivedZipFile = usedLabel.getLatestRepoFileArchive(workspace, env);
 
 			if (archivedFile == null || !archivedFile.exists() || archivedZipFile == null
 					|| !archivedZipFile.exists()) {

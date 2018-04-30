@@ -1,23 +1,19 @@
 {
 	"default": {
 		"name": "default",
-		"downloadPath": "{workspace}/repository", 
-		"archivePath": "{jenkinsRoot}/shared-maven-repository/repository.zip"
+		"downloadPath": "{{workspace}}/repository", 
+		"archivePath": "{{jenkinsRoot}}/shared-maven-repository/repository.zip"
 	},
-	"default-m2-repository": {
+	"default-m2-repository-home": {
 		"name": "default-m2-repository",
-		"downloadPath": "./.m2/.repository", 
-		"archivePath": "/tmp/repository.zip",
+		"downloadPath": "~/.m2/.repository", 
+		"archivePath": "/tmp/repository-home.zip",
 		"isM2Repo": true
 	},
-	"default-workspace-root": {
-		"name": "default-workspace-root",
-		"downloadPath": "{workspace}", 
-		"archivePath": "{jenkinsRoot}/archive.zip"
-	},
-	"default-slaveName-root": {
-		"name": "default-workspace-root",
-		"downloadPath": "{slaveName}", 
-		"archivePath": "{jenkinsRoot}/archive.zip"
+	"default-m2-repository-local": {
+		"name": "default-m2-repository",
+		"downloadPath": "./.m2/.repository", 
+		"archivePath": "/tmp/repository-local.zip",
+		"isM2Repo": true
 	}
 }

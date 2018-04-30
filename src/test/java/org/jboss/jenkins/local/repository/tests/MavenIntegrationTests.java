@@ -25,6 +25,7 @@ import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
+import jenkins.model.Jenkins;
 
 /**
  * These tests cover scenarios following patter:
@@ -42,19 +43,45 @@ public class MavenIntegrationTests  extends MavenIntegrationTestsBase {
 	String tmpArchivePath = "/tmp/jenkins/archive.zip";
 
 	/**
-	 * default-workspace-root
+	 * label-root
 	 */
 	@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
-	public void testDefaultDownloadAndArchiveForRootPath()
+	public void testDownloadAndArchiveForRootPath()
 			throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "label";
-		String downloadPath = "{jenkinsRoot}/workspace/" + projectName + "/repository";
+		String downloadPath = "{{jenkinsRoot}}/workspace/" + projectName + "/repository";
 		String archivePath = "/tmp/jenkins/archive/";
 		new File(archivePath).mkdirs();
 
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
 				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath + "'}}");
+		Label.saveLabels();
+		assertFalse("Mehotd Label.getLabelsPath() should not return empty value by now", Label.getLabelsPath().isEmpty());
+		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
+				(new File(Label.getLabelsPath()).exists()));
+
+		// here new labels should be updated in configuration
+
+		configureBildAndVerify(2, usedLabel, usedLabel);
+	}
+	
+
+	/**
+	 * label-workspace
+	 */
+	@Test
+	@WithRemoveDuplicatedPlugin("shared-maven-repository")
+	public void testDownloadAndArchiveForWorkspacePath()
+			throws IOException, InterruptedException, ExecutionException, SAXException {
+		String usedLabel = "label";
+		String downloadPath = "{{workspace}}/repository";
+		String archivePath = "/tmp/jenkins/archive/";
+		new File(archivePath).mkdirs();
+
+		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
+				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath + "'}}");
+		Label.saveLabels();
 
 		assertFalse("Mehotd Label.getLabelsPath() should not return empty value by now", Label.getLabelsPath().isEmpty());
 		assertTrue("File with path " + Label.getLabelsPath() + " should exist",

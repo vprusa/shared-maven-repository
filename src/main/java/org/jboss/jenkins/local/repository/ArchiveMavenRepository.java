@@ -18,6 +18,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -58,12 +59,14 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		FilePath archivedLocalFile;
 		FilePath workspace;
 		TaskListener listener;
+		EnvVars env;
 
-		JenkinsSlaveCallable(Label label, FilePath archivedLocalFile, FilePath workspace, TaskListener listener) {
+		JenkinsSlaveCallable(Label label, FilePath archivedLocalFile, FilePath workspace, TaskListener listener, EnvVars env) {
 			this.label = label;
 			this.archivedLocalFile = archivedLocalFile;
 			this.workspace = workspace;
 			this.listener = listener;
+			this.env = env;
 		}
 
 		@Override
@@ -77,7 +80,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 			if (label.isM2Repo()) {
 				RepoFileFilter repoFilter = new RepoFileFilter();
 				try {
-					repoFilter.preparePath(new File(label.getDownloadFilePath(workspace).toURI()));
+					repoFilter.preparePath(new File(label.getDownloadFilePath(workspace, env).toURI()));
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -95,13 +98,13 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				repoOutputStream = archivedLocalFile.write();
 				try {
 					listener.getLogger().println("Fill archive " + archivedLocalFile.toURI());
-					label.getDownloadFilePath(workspace).archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
+					label.getDownloadFilePath(workspace, env).archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
 					listener.getLogger().println("Done!");
 				} catch (IOException e) {
 					repoOutputStream.close();
 					return "Failed";
 				}
-				MasterMavenRepository.getInstance().uploadRepository(archivedLocalFile, workspace, listener, label);
+				MasterMavenRepository.getInstance().uploadRepository(archivedLocalFile, workspace, listener, label, env);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 				return "Failed";
@@ -118,6 +121,9 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
 			Result buildResult = build.getResult();
+			
+			EnvVars env = build.getEnvironment(listener);
+
 			if (buildResult != null && buildResult.isWorseThan(Result.FAILURE)) {
 				listener.getLogger()
 						.println("Build ended with status worse than FAILURE. Maven repository wont be archived");
@@ -128,17 +134,17 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 			if (label != null) {
 
 				listener.getLogger()
-						.println("Found files for path: " + Label.decorate(label.getDownloadPath(), workspace));
+						.println("Found files for path: " + label.getDownloadFilePath(workspace, env).getRemote());
 				FilePath archivedLocalFile;
 				
-				if (label.getArchiveFilePath(workspace).isDirectory()) {
+				if (label.getArchiveFilePath(workspace, env).isDirectory()) {
 					// is dir so create new zip with unique name in this dir
-					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace).getParent(),
+					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace, env).getParent(),
 							"archived-" + UUID.randomUUID().toString() + ".zip");
 				} else {
 					// is file so create new file next to old one
-					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace).getParent(),
-							label.getArchiveFilePath(workspace).getBaseName() + "-archived-"
+					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace, env).getParent(),
+							label.getArchiveFilePath(workspace, env).getBaseName() + "-archived-"
 									+ UUID.randomUUID().toString() + ".zip");
 				}
 
@@ -150,7 +156,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 				// Define what should be run on the slave for this build
 				JenkinsSlaveCallable slaveTask = new JenkinsSlaveCallable(label, archivedLocalFile, workspace,
-						listener);
+						listener, env);
 
 				// Get a "channel" to the build machine and run the task there
 				String status = launcher.getChannel().call(slaveTask);

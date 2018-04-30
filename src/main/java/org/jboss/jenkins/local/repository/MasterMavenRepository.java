@@ -8,6 +8,7 @@ import java.util.Collection;
 import org.acegisecurity.AccessDeniedException;
 import org.jfree.util.Log;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
@@ -58,29 +59,29 @@ public class MasterMavenRepository {
 		return instance;
 	}
 
-	public void uploadRepository(FilePath repositoryTar, FilePath workspace, TaskListener listener, Label label)
+	public void uploadRepository(FilePath repositoryTar, FilePath workspace, TaskListener listener, Label label, EnvVars env)
 			throws IOException, InterruptedException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
 			listener.getLogger().println("Upload " + repositoryTar.absolutize().toURI() + " to Jenkins master");
 
-			String path = label.getArchiveFilePath(workspace).getRemote();
+			String path = label.getArchiveFilePath(workspace, env).getRemote();
 
 			FilePath masterRepo = new FilePath(new File(new File(path), repositoryTar.getName()));
 			repositoryTar.copyTo(masterRepo);
 			listener.getLogger().println("Repository uploaded to " + masterRepo.absolutize().toURI());
 			repositoryTar.delete();
-			deleteOldRepositories(listener, workspace, label);
+			deleteOldRepositories(listener, workspace, label, env);
 		}
 	}
 
-	private void deleteOldRepositories(TaskListener listener, FilePath workspace, Label label) throws IOException, InterruptedException {
+	private void deleteOldRepositories(TaskListener listener, FilePath workspace, Label label,EnvVars env) throws IOException, InterruptedException {
 		listener.getLogger().println("Delete old repositories from master");
-		File[] repositories = new File(label.getArchiveFilePath(workspace).getRemote()).listFiles();
+		File[] repositories = new File(label.getArchiveFilePath(workspace, env).getRemote()).listFiles();
 		if (repositories != null) {
 			for (File repo : repositories) {
 				String repoName = repo.getName();
-				if (!repoName.equals(label.getLatestRepoFileArchive(workspace).getName())) {
+				if (!repoName.equals(label.getLatestRepoFileArchive(workspace, env).getName())) {
 					boolean deleted = repo.delete();
 					if (!deleted) {
 						listener.getLogger().println("Unable to delete old repository " + repoName);
@@ -97,12 +98,12 @@ public class MasterMavenRepository {
 	 * @throws InterruptedException 
 	 * @throws IOException 
 	 */
-	public static FilePath getLatestRepo(Label label, FilePath workspace) throws IOException, InterruptedException {
+	public static FilePath getLatestRepo(Label label, FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		//if (repositoriesDir == null)
 		//	getInstance();
 		
 		Log.info("a");
-		FilePath archiveFile = label.getArchiveFilePath(workspace);
+		FilePath archiveFile = label.getArchiveFilePath(workspace, env);
 		Log.info("a1");
 		
 		FilePath archiveDir;

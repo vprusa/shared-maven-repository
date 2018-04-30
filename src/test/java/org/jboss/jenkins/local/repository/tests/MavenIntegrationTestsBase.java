@@ -22,6 +22,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsRule.WebClient;
 import org.xml.sax.SAXException;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
@@ -110,9 +111,9 @@ public class MavenIntegrationTestsBase {
 				+ expected.toString(), !build.getResult().isBetterOrEqualTo(expected));
 	}
 
-	public void verifyThatArchiveConstainsTestFile(Label label) throws IOException, InterruptedException {
+	public void verifyThatArchiveConstainsTestFile(Label label, EnvVars env) throws IOException, InterruptedException {
 		FilePath workspace = project.getSomeWorkspace(); // getWorkspace();
-		FilePath path = label.getLatestRepoFileArchive(workspace);
+		FilePath path = label.getLatestRepoFileArchive(workspace, env);
 
 		String tmpUnzippedTestPath = tmpUnzippedPath + "/" + testFileDir + testFileName;
 		File unzipTest = new File(tmpUnzippedPath);
@@ -125,7 +126,7 @@ public class MavenIntegrationTestsBase {
 		path.unzip(new FilePath(unzipTest));
 		assertTrue(
 				"Test file does not exists in unzipped directory. Label path: "
-						+ label.getLatestRepoFileArchive(workspace) + " , file path: " + tmpUnzippedTestPath,
+						+ label.getLatestRepoFileArchive(workspace, env) + " , file path: " + tmpUnzippedTestPath,
 				new File(tmpUnzippedTestPath).exists());
 	}
 
@@ -136,8 +137,9 @@ public class MavenIntegrationTestsBase {
 
 		project.save();
 
-		prepareStartAndVerifySuccessful(buildsCount);
-		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA));
+		ArrayList<FreeStyleBuild> builds = prepareStartAndVerifySuccessful(buildsCount);
+		
+		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA), builds.get(builds.size()-1).getEnvironment(null));
 	}
 
 	public String loadTestConfig(String testConfigFileName) throws IOException {
