@@ -12,6 +12,8 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import org.jboss.jenkins.local.repository.DownloadMavenRepository.JenkinsSlaveCallable;
+import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -23,6 +25,7 @@ import hudson.model.AbstractProject;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.remoting.Callable;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
@@ -49,6 +52,66 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		this.usedLabel = usedLabel;
 	}
 
+	class JenkinsSlaveCallable implements Callable<String, IOException> {
+
+		Label label;
+		FilePath archivedLocalFile;
+		FilePath workspace;
+		TaskListener listener;
+
+		JenkinsSlaveCallable(Label label, FilePath archivedLocalFile, FilePath workspace, TaskListener listener) {
+			this.label = label;
+			this.archivedLocalFile = archivedLocalFile;
+			this.workspace = workspace;
+			this.listener = listener;
+		}
+
+		@Override
+		public void checkRoles(RoleChecker arg0) throws SecurityException {
+		}
+
+		@Override
+		public String call() throws IOException {
+
+			FileFilter filter;
+			if (label.isM2Repo()) {
+				RepoFileFilter repoFilter = new RepoFileFilter();
+				try {
+					repoFilter.preparePath(new File(label.getDownloadFilePath(workspace).toURI()));
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				filter = repoFilter;
+			} else {
+				filter = new FileFilter() {
+					@Override
+					public boolean accept(File pathname) {
+						return true;
+					}
+				};
+			}
+			OutputStream repoOutputStream;
+			try {
+				repoOutputStream = archivedLocalFile.write();
+				try {
+					listener.getLogger().println("Fill archive " + archivedLocalFile.toURI());
+					label.getDownloadFilePath(workspace).archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
+					listener.getLogger().println("Done!");
+				} catch (IOException e) {
+					repoOutputStream.close();
+					return "Failed";
+				}
+				MasterMavenRepository.getInstance().uploadRepository(archivedLocalFile, workspace, listener, label);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				return "Failed";
+			}
+
+			return "Done";
+		}
+
+	}
+
 	@Override
 	public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
@@ -67,14 +130,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				listener.getLogger()
 						.println("Found files for path: " + Label.decorate(label.getDownloadPath(), workspace));
 				FilePath archivedLocalFile;
-				// if (label.getArchivePath().endsWith(".zip")) {
-				// is file exists so create new one next to this with different unique name
-				// archivedFile = new FilePath(label.getArchiveFilePath(workspace).getParent(),
-				// label.getArchiveFilePath(workspace).getBaseName() +
-				// UUID.randomUUID().toString() + ".zip");
-
-				// "file-" + UUID.randomUUID().toString() + ".zip");
-				// } else
+				
 				if (label.getArchiveFilePath(workspace).isDirectory()) {
 					// is dir so create new zip with unique name in this dir
 					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace).getParent(),
@@ -90,29 +146,16 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 					archivedLocalFile.touch(new Date().getTime());
 					listener.getLogger().println("Created empty zip " + archivedLocalFile.toURI());
 				}
-				FileFilter filter;
-				if (label.isM2Repo()) {
-					RepoFileFilter repoFilter = new RepoFileFilter();
-					repoFilter.preparePath(new File(label.getDownloadFilePath(workspace).toURI()));
-					filter = repoFilter;
-				} else {
-					filter = new FileFilter() {
-						@Override
-						public boolean accept(File pathname) {
-							return true;
-						}
-					};
-				}
-				OutputStream repoOutputStream = archivedLocalFile.write();
-				try {
-					listener.getLogger().println("Fill archive " + archivedLocalFile.toURI());
-					label.getDownloadFilePath(workspace).archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
-					listener.getLogger().println("Done!");
-				} finally {
-					repoOutputStream.close();
-				}
 
-				MasterMavenRepository.getInstance().uploadRepository(archivedLocalFile, workspace, listener, label);
+				// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
+				// Define what should be run on the slave for this build
+				JenkinsSlaveCallable slaveTask = new JenkinsSlaveCallable(label, archivedLocalFile, workspace,
+						listener);
+
+				// Get a "channel" to the build machine and run the task there
+				String status = launcher.getChannel().call(slaveTask);
+				listener.getLogger().println("Jenkins repository slave execution status: " + status);
+
 				return;
 			}
 			listener.getLogger().println(".repository folder not found");
@@ -218,7 +261,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				return FormValidation.ok();
 			} catch (NumberFormatException e) {
 				return FormValidation.error(
-						"Shared-maven-repository Labels are not in valid JSON Tuples list format, used format {\"key\":\"value\", ...}");
+						"Shared-maven-repository Labels are not in valid JSON list format, check pluign github repo for more information");
 			}
 		}
 
