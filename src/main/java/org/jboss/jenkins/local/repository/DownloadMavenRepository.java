@@ -1,11 +1,9 @@
 package org.jboss.jenkins.local.repository;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
 import java.util.logging.Logger;
 
-import org.jenkinsci.remoting.RoleChecker;
+import org.apache.commons.lang.SerializationUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -16,7 +14,6 @@ import hudson.Launcher;
 import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.remoting.Callable;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.ListBoxModel;
@@ -52,44 +49,11 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 		this.usedLabel = usedLabel;
 	}
 
-	class JenkinsSlaveCallable implements Callable<String, IOException> {
-
-		FilePath archivedZipFile;
-		FilePath downloadZipFile;
-		FilePath downloadDest;
-
-		JenkinsSlaveCallable(FilePath archivedZipFile, FilePath downloadZipFile, FilePath downloadDest) {
-			this.archivedZipFile = archivedZipFile;
-			this.downloadZipFile = downloadZipFile;
-			this.downloadDest = downloadDest;
-		}
-
-		@Override
-		public void checkRoles(RoleChecker arg0) throws SecurityException {
-			// TODO Auto-generated method stub
-		}
-
-		@Override
-		public String call() throws IOException {
-
-			try {
-				archivedZipFile.copyTo(downloadZipFile);
-				Label.deleteDir(new File(downloadDest.getRemote()));
-				downloadZipFile.unzip(downloadDest.getParent());
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				return "Failed";
-			}
-
-			return "Done";
-		}
-
-	}
-
 	@Override
 	public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
+		
 		if (jenkins != null) {
 			EnvVars env = build.getEnvironment(listener);
 			String usedLabelId = getUsedLabel();
@@ -99,7 +63,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 						.println("Jenkins master does not have any maven repository for label " + usedLabelId);
 				return;
 			}
-
+			
 			listener.getLogger().println("Downloading files for label: " + usedLabel.toString());
 			FilePath downloadDest = usedLabel.getDownloadFilePath(workspace, env);
 
@@ -124,7 +88,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 
 			// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 			// Define what should be run on the slave for this build
-			JenkinsSlaveCallable slaveTask = new JenkinsSlaveCallable(archivedZipFile, downloadZipFile, downloadDest);
+			JenkinsSlaveDownloadCallable slaveTask = new JenkinsSlaveDownloadCallable(archivedZipFile, downloadZipFile, downloadDest, listener);
 
 			// Get a "channel" to the build machine and run the task there
 			String status = launcher.getChannel().call(slaveTask);

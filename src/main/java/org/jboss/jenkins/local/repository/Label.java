@@ -8,42 +8,46 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.remoting.Channel;
+import hudson.remoting.VirtualChannel;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
-import jenkins.model.Jenkins;
 
-public class Label {
+public class Label implements Serializable {
 
-	public static boolean GET_LATEST_ARCHIVE = true;
-	public static boolean GET_LATEST_DOWNLOAD = false;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	
+	transient public static boolean GET_LATEST_ARCHIVE = true;
+	transient public static boolean GET_LATEST_DOWNLOAD = false;
 
-	private static final Logger log = Logger.getLogger(Label.class.getName());
-
-	private static String labelsPath = "";
+	transient private static String labelsPath = "";
 
 	public static String getLabelsPath() {
 		return labelsPath;
 	}
 
-	private static String resourcesLabelsPath = "/defaultLabels.json";
+	transient private static String resourcesLabelsPath = "/defaultLabels.json";
 
 	private String id;
 	private String name;
 	private boolean isM2Repo;
-
+	
 	public boolean isM2Repo() {
 		return isM2Repo;
 	}
@@ -52,21 +56,32 @@ public class Label {
 		this.isM2Repo = isM2Repo;
 	}
 
+
 	// private FilePath latestRepoFileDownload;
 	private FilePath latestRepoFileArchive;
 
 	private String downloadPath;
+	private FilePath downloadFilePath;
 
 	public String getDownloadPath() {
 		return downloadPath;
 	}
 
 	private String archivePath;
+	private FilePath archiveFilePath;
 
 	public String getArchivePath() {
 		return archivePath;
 	}
-
+	
+	public void clearFilePathsCache() {
+		archiveFilePath = null;
+		downloadFilePath = null;
+	}
+	// https://wiki.jenkins.io/display/JENKINS/Making+your+plugin+behave+in+distributed+Jenkins#MakingyourpluginbehaveindistributedJenkins-Performanceconsideration
+	// Gotchas
+	static String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
+	
 	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo) {
 		this.name = name;
 		this.id = id;
@@ -79,7 +94,7 @@ public class Label {
 		if (path == null) {
 			return null;
 		}
-		String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
+		
 		String jobWorkspacePath = workspace.getRemote(); // workspace
 
 		for (Entry<String, String> entry : env.entrySet()) {
@@ -103,13 +118,19 @@ public class Label {
 	public FilePath getDownloadFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getDownloadPath() == null)
 			return null;
-		return new FilePath(new File(Label.decorate(getDownloadPath(), workspace, env)));
+		//return new FilePath(new File(Label.decorate(getDownloadPath(), workspace, env)));
+		if(downloadFilePath  == null)
+			return downloadFilePath = new FilePath(Channel.current(), Label.decorate(getDownloadPath(), workspace, env));
+		return downloadFilePath;
 	}
 
 	public FilePath getArchiveFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getArchivePath() == null)
 			return null;
-		return new FilePath(new File(Label.decorate(getArchivePath(), workspace, env)));
+		//return new FilePath(new File(Label.decorate(getArchivePath(), workspace, env)));
+		if(archiveFilePath  == null)
+			return archiveFilePath = new FilePath(Channel.current(), Label.decorate(getArchivePath(), workspace, env));
+		return archiveFilePath;
 	}
 
 	public FilePath getLatestRepoFileArchive(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
@@ -276,5 +297,5 @@ public class Label {
 		}
 		folder.delete();
 	}
-
+	
 }

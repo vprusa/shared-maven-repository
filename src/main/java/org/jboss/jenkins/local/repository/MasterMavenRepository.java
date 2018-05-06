@@ -3,52 +3,47 @@ package org.jboss.jenkins.local.repository;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 
-import org.acegisecurity.AccessDeniedException;
 import org.jfree.util.Log;
 
 import hudson.EnvVars;
 import hudson.FilePath;
-import hudson.model.Item;
-import hudson.model.ItemGroup;
-import hudson.model.Job;
 import hudson.model.TaskListener;
-import hudson.model.TopLevelItem;
-import hudson.model.TopLevelItemDescriptor;
-import hudson.search.Search;
-import hudson.search.SearchIndex;
-import hudson.security.ACL;
-import hudson.security.Permission;
+import hudson.remoting.Channel;
 import jenkins.model.Jenkins;
 
 public class MasterMavenRepository {
 
 	private static MasterMavenRepository instance;
-	//private static File repositoriesDir;
+	// private static File repositoriesDir;
 
 	private MasterMavenRepository() {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
-			File config = new File(jenkins.getRootDir(), "shared-maven-repository/config.json");
-			if(!config.exists()) {
-				try {
+			FilePath config = new FilePath(new FilePath(jenkins.getRootDir()), "shared-maven-repository/config.json");
+			try {
+				if (!config.exists()) {
 					Label.loadStringFromFile();
-				} catch (IOException e) {
-					e.printStackTrace();
+					if (!config.exists()) {
+						throw new RuntimeException(
+								"Unable to create shared-maven-repository repository folder with config.json file");
+					}
 				}
-				if(!config.exists()) {
-					throw new RuntimeException("Unable to create shared-maven-repository repository folder with config.json file");
-				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			/*repositoriesDir = new File(jenkins.getRootDir(), "shared-maven-repository");
-			if (!repositoriesDir.exists()) {
-				boolean created = repositoriesDir.mkdir();
-				if (!created) {
-					throw new RuntimeException("Unable to delete master repository folder");
-				}
-			}*/
-			
+
+			/*
+			 * repositoriesDir = new File(jenkins.getRootDir(), "shared-maven-repository");
+			 * if (!repositoriesDir.exists()) { boolean created = repositoriesDir.mkdir();
+			 * if (!created) { throw new
+			 * RuntimeException("Unable to delete master repository folder"); } }
+			 */
+
 		}
 	}
 
@@ -59,35 +54,39 @@ public class MasterMavenRepository {
 		return instance;
 	}
 
-	public void uploadRepository(FilePath repositoryTar, FilePath workspace, TaskListener listener, Label label, EnvVars env)
-			throws IOException, InterruptedException {
+	public void uploadRepository(FilePath repositoryTar, FilePath workspace, /* TaskListener listener, */ Label label,
+			EnvVars env) throws IOException, InterruptedException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
-			listener.getLogger().println("Upload " + repositoryTar.absolutize().toURI() + " to Jenkins master");
+			// listener.getLogger().println("Upload " + repositoryTar.absolutize().toURI() +
+			// " to Jenkins master");
 
 			String path = label.getArchiveFilePath(workspace, env).getRemote();
 
-			FilePath masterRepo = new FilePath(new File(new File(path), repositoryTar.getName()));
+			FilePath masterRepo = new FilePath(new FilePath(Channel.current(), path), repositoryTar.getName());
 			repositoryTar.copyTo(masterRepo);
-			listener.getLogger().println("Repository uploaded to " + masterRepo.absolutize().toURI());
+			// listener.getLogger().println("Repository uploaded to " +
+			// masterRepo.absolutize().toURI());
 			repositoryTar.delete();
-			deleteOldRepositories(listener, workspace, label, env);
+			deleteOldRepositories(/* listener, */ workspace, label, env);
 		}
 	}
 
-	private void deleteOldRepositories(TaskListener listener, FilePath workspace, Label label,EnvVars env) throws IOException, InterruptedException {
-		listener.getLogger().println("Delete old repositories from master");
-		File[] repositories = new File(label.getArchiveFilePath(workspace, env).getRemote()).listFiles();
+	private void deleteOldRepositories(/* TaskListener listener, */FilePath workspace, Label label, EnvVars env)
+			throws IOException, InterruptedException {
+		// listener.getLogger().println("Delete old repositories from master");
+		List<FilePath> repositories = label.getArchiveFilePath(workspace, env).list();
 		if (repositories != null) {
-			for (File repo : repositories) {
+			for (FilePath repo : repositories) {
 				String repoName = repo.getName();
 				if (!repoName.equals(label.getLatestRepoFileArchive(workspace, env).getName())) {
 					boolean deleted = repo.delete();
-					if (!deleted) {
-						listener.getLogger().println("Unable to delete old repository " + repoName);
-					} else {
-						listener.getLogger().println("Deleted old repository from master " + repoName);
-					}
+					/*
+					 * if (!deleted) {
+					 * listener.getLogger().println("Unable to delete old repository " + repoName);
+					 * } else { listener.getLogger().println("Deleted old repository from master " +
+					 * repoName); }
+					 */
 				}
 			}
 		}
@@ -95,51 +94,46 @@ public class MasterMavenRepository {
 
 	/**
 	 * 
-	 * @throws InterruptedException 
-	 * @throws IOException 
+	 * @throws InterruptedException
+	 * @throws IOException
 	 */
-	public static FilePath getLatestRepo(Label label, FilePath workspace, EnvVars env) throws IOException, InterruptedException {
-		//if (repositoriesDir == null)
-		//	getInstance();
-		
-		Log.info("a");
+	public static FilePath getLatestRepo(Label label, FilePath workspace, EnvVars env)
+			throws IOException, InterruptedException {
+		// if (repositoriesDir == null)
+		// getInstance();
+
 		FilePath archiveFile = label.getArchiveFilePath(workspace, env);
-		Log.info("a1");
-		
+
 		FilePath archiveDir;
-		if(archiveFile.isDirectory()) {
+		if (archiveFile.isDirectory()) {
 			archiveDir = archiveFile;
-		}else {
+		} else {
 			archiveDir = archiveFile.getParent();
 		}
-		Log.info("a2");
-		
-		
-		File archiveDirFile = new File(archiveDir.getRemote());
-		if (archiveDirFile == null || !archiveDirFile.exists()) {
-			return null;
-		}
-		Log.info("a3");
-		Log.info(archiveDirFile.toString());
-		File lastModifiedFile = lastFileModified(archiveDirFile);
+
+		// FilePath archiveDirFile = new FilePath(archiveDir.getRemote());
+		// if (archiveDirFile == null || !archiveDirFile.exists()) {
+		// return null;
+		// }
+
+		FilePath lastModifiedFile = lastFileModified(archiveDir);
 		if (lastModifiedFile == null) {
 			return null;
 		}
-		Log.info("a4");
-		
-		return new FilePath(lastModifiedFile);
+
+		return lastModifiedFile;
 	}
 
-	private static File lastFileModified(File dir) {
-		File[] files = dir.listFiles(new FileFilter() {
+	private static FilePath lastFileModified(FilePath dir) throws IOException, InterruptedException {
+		List<FilePath> files = dir.list(new FileFilter() {
 			public boolean accept(File file) {
 				return file.isFile();
 			}
 		});
 		long lastMod = Long.MIN_VALUE;
-		File choice = null;
+		FilePath choice = null;
 		if (files != null) {
-			for (File file : files) {
+			for (FilePath file : files) {
 				if (file.lastModified() > lastMod) {
 					choice = file;
 					lastMod = file.lastModified();

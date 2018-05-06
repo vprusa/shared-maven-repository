@@ -24,10 +24,6 @@
 
 package org.jboss.jenkins.local.repository;
 
-import hudson.util.FileVisitor;
-import hudson.util.io.Archiver;
-import hudson.util.io.ArchiverFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -36,6 +32,9 @@ import java.nio.charset.Charset;
 
 import de.schlichtherle.truezip.zip.ZipEntry;
 import de.schlichtherle.truezip.zip.ZipOutputStream;
+import hudson.util.FileVisitor;
+import hudson.util.io.Archiver;
+import hudson.util.io.ArchiverFactory;
 
 /**
  * {@link FileVisitor} that creates a zip archive via TrueZip.
@@ -43,7 +42,7 @@ import de.schlichtherle.truezip.zip.ZipOutputStream;
  * Modified version of {@link hudson.util.io.ZipArchiver} that created archives
  * larger than 4G successfully.
  */
-final /*pacakge*/ class TrueZipArchiver extends Archiver {
+final public/*pacakge*/ class TrueZipArchiver extends Archiver {
     private final byte[] buf = new byte[8192];
     private final ZipOutputStream zip;
 

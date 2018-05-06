@@ -130,9 +130,10 @@ public class MavenIntegrationTestsBase {
 				new File(tmpUnzippedTestPath).exists());
 	}
 
-	public void configureBildAndVerify(int buildsCount, String labelD, String labelA)
+	public ArrayList<FreeStyleBuild> configureBildAndVerify(int buildsCount, String labelD, String labelA)
 			throws IOException, SAXException, InterruptedException, ExecutionException {
 		project.getBuildersList().add(new DownloadMavenRepository(labelD));
+		//project.getBuildersList().add(new ArchiveMavenRepository(labelA));
 		project.getPublishersList().add(new ArchiveMavenRepository(labelA));
 
 		project.save();
@@ -140,6 +141,7 @@ public class MavenIntegrationTestsBase {
 		ArrayList<FreeStyleBuild> builds = prepareStartAndVerifySuccessful(buildsCount);
 		
 		verifyThatArchiveConstainsTestFile(Label.getUsedLabelById(labelA), builds.get(builds.size()-1).getEnvironment(null));
+		return builds;
 	}
 
 	public String loadTestConfig(String testConfigFileName) throws IOException {

@@ -79,6 +79,7 @@ public class UIDefaultTests {
 						"value=\"default\""};
 
 		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		//project.getBuildersList().add(new ArchiveMavenRepository(usedLabel));
 
 		verifyPageFor(expectedConfigurationPageTexts, "job/" + projectName + "/configure");
 	}
