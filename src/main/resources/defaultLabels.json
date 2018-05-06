@@ -6,14 +6,15 @@
 	},
 	"default-m2-repository-home": {
 		"name": "default-m2-repository",
-		"downloadPath": "~/.m2/.repository", 
+		"downloadPath": "~/.m2/repository", 
 		"archivePath": "/tmp/repository-home.zip",
 		"isM2Repo": true
 	},
 	"default-m2-repository-local": {
 		"name": "default-m2-repository",
-		"downloadPath": "./.m2/.repository", 
+		"downloadPath": "./.m2/repository", 
 		"archivePath": "/tmp/repository-local.zip",
-		"isM2Repo": true
+		"isM2Repo": true,
+		"doNotArchiveIfWorseThen": "FAILURE"
 	}
 }

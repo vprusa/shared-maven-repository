@@ -128,7 +128,8 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 		String usedLabel = "default";
 
 		project.getBuildersList().add(new DownloadMavenRepository(usedLabel));
-		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		//project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		project.getBuildersList().add(new ArchiveMavenRepository(usedLabel));
 
 		prepareStartAndVerifySuccessful(2);
 	}
@@ -139,7 +140,8 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 	public void testNotExistingArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "none";
 
-		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		//project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		project.getBuildersList().add(new ArchiveMavenRepository(usedLabel));
 
 		prepareStartAndVerifySuccessful(1);
 	}
@@ -161,7 +163,8 @@ public class MavenIntegrationTestsSimple extends MavenIntegrationTestsBase {
 	public void testDefaultArchive() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "default";
 
-		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		//project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		project.getBuildersList().add(new ArchiveMavenRepository(usedLabel));
 
 		prepareStartAndVerifySuccessful(1);
 	}

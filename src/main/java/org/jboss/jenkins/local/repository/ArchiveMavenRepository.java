@@ -1,19 +1,11 @@
 package org.jboss.jenkins.local.repository;
 
-import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
-import org.jboss.jenkins.local.repository.DownloadMavenRepository.JenkinsSlaveCallable;
-import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -23,27 +15,31 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractProject;
+import hudson.model.Computer;
+import hudson.model.ComputerSet;
+import hudson.model.Node;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import hudson.remoting.Callable;
+import hudson.remoting.Channel;
+import hudson.slaves.SlaveComputer;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
+import hudson.tasks.Builder;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.model.Nodes;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 
-public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep {
+public class ArchiveMavenRepository extends Builder implements SimpleBuildStep {
+//public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep {
 
 	private static final Logger log = Logger.getLogger(ArchiveMavenRepository.class.getName());
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 
 	public String usedLabel;
@@ -53,118 +49,51 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		this.usedLabel = usedLabel;
 	}
 
-	class JenkinsSlaveCallable implements Callable<String, IOException> {
-
-		Label label;
-		FilePath archivedLocalFile;
-		FilePath workspace;
-		TaskListener listener;
-		EnvVars env;
-
-		JenkinsSlaveCallable(Label label, FilePath archivedLocalFile, FilePath workspace, TaskListener listener, EnvVars env) {
-			this.label = label;
-			this.archivedLocalFile = archivedLocalFile;
-			this.workspace = workspace;
-			this.listener = listener;
-			this.env = env;
-		}
-
-		@Override
-		public void checkRoles(RoleChecker arg0) throws SecurityException {
-		}
-
-		@Override
-		public String call() throws IOException {
-
-			FileFilter filter;
-			if (label.isM2Repo()) {
-				RepoFileFilter repoFilter = new RepoFileFilter();
-				try {
-					repoFilter.preparePath(new File(label.getDownloadFilePath(workspace, env).toURI()));
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				filter = repoFilter;
-			} else {
-				filter = new FileFilter() {
-					@Override
-					public boolean accept(File pathname) {
-						return true;
-					}
-				};
-			}
-			OutputStream repoOutputStream;
-			try {
-				repoOutputStream = archivedLocalFile.write();
-				try {
-					listener.getLogger().println("Fill archive " + archivedLocalFile.toURI());
-					label.getDownloadFilePath(workspace, env).archive(TrueZipArchiver.FACTORY, repoOutputStream, filter);
-					listener.getLogger().println("Done!");
-				} catch (IOException e) {
-					repoOutputStream.close();
-					return "Failed";
-				}
-				MasterMavenRepository.getInstance().uploadRepository(archivedLocalFile, workspace, listener, label, env);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				return "Failed";
-			}
-
-			return "Done";
-		}
-
-	}
-
 	@Override
 	public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 		Jenkins jenkins = Jenkins.getInstance();
 		if (jenkins != null) {
 			Result buildResult = build.getResult();
-			
+
 			EnvVars env = build.getEnvironment(listener);
 
-			if (buildResult != null && buildResult.isWorseThan(Result.FAILURE)) {
+			Label used = Label.getUsedLabelById(getUsedLabel());
+			if ((used.getDoNotArchiveIfWorseThen() == null && buildResult != null
+					&& buildResult.isWorseThan(Result.FAILURE))
+					|| (used.getDoNotArchiveIfWorseThen() != null
+							&& (buildResult != null && buildResult.isWorseThan(used.getDoNotArchiveIfWorseThen())))) {
 				listener.getLogger()
-						.println("Build ended with status worse than FAILURE. Maven repository wont be archived");
+						.println("Build ended with status worse than "
+								+ (used.getDoNotArchiveIfWorseThen() == null ? "FAILURE"
+										: used.getDoNotArchiveIfWorseThen().toString())
+								+ ". Maven repository wont be archived");
 				return;
 			}
 			listener.getLogger().println("Archive private maven repository");
-			Label label = Label.getUsedLabelById(getUsedLabel());
-			if (label != null) {
+
+			if (used != null) {
 
 				listener.getLogger()
-						.println("Found files for path: " + label.getDownloadFilePath(workspace, env).getRemote());
-				FilePath archivedLocalFile;
-				
-				if (label.getArchiveFilePath(workspace, env).isDirectory()) {
-					// is dir so create new zip with unique name in this dir
-					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace, env).getParent(),
-							"archived-" + UUID.randomUUID().toString() + ".zip");
-				} else {
-					// is file so create new file next to old one
-					archivedLocalFile = new FilePath(label.getDownloadFilePath(workspace, env).getParent(),
-							label.getArchiveFilePath(workspace, env).getBaseName() + "-archived-"
-									+ UUID.randomUUID().toString() + ".zip");
-				}
+						.println("Found files for path: " + used.getDownloadFilePath(workspace, env).getRemote());
+			
+				used.setChannel(null);
 
-				if (!archivedLocalFile.exists()) {
-					archivedLocalFile.touch(new Date().getTime());
-					listener.getLogger().println("Created empty zip " + archivedLocalFile.toURI());
-				}
+				// listener.getLogger().println("launcher.getChannel()");
 
+				// label.updateChannel(launcher.getChannel());
 				// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 				// Define what should be run on the slave for this build
-				JenkinsSlaveCallable slaveTask = new JenkinsSlaveCallable(label, archivedLocalFile, workspace,
-						listener, env);
-
+				JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(workspace, env, listener, used);
 				// Get a "channel" to the build machine and run the task there
-				String status = launcher.getChannel().call(slaveTask);
+				// String status = launcher.getChannel().call(slaveTask);
+
+				String status = JenkinsSlaveCallableBase.decideAndCall(used, launcher, slaveTask, listener);;
 				listener.getLogger().println("Jenkins repository slave execution status: " + status);
 
 				return;
 			}
-			listener.getLogger().println(".repository folder not found");
+			listener.getLogger().println("Files not found");
 		}
 
 	}
@@ -183,7 +112,9 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 	}
 
 	@Extension
-	public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements Serializable {
+	// public static final class DescriptorImpl extends
+	// BuildStepDescriptor<Publisher> implements Serializable {
+	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements Serializable {
 
 		/**
 		 * In order to load the persisted global configuration, you have to call load()
@@ -243,7 +174,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		 * This human readable name is used in the configuration screen.
 		 */
 		public String getDisplayName() {
-			return "Archive .m2 repository";
+			return "Archive repository";
 		}
 
 		@Override

@@ -1,10 +1,10 @@
 # shared-maven-repository
 
-This plugin downloads and then (re)archives .m2 directory into jenkins root/shared-maven-repository directory after each build for jobs with specific label
+This plugin downloads and then (re)archives directory (mainly .m2/repository) or file into jenkins root/shared-maven-repository directory after each build for jobs with specific label
 
 ### Why: 
 
-To make installing maven dependencies faster across multiple jobs
+To make installing maven dependencies faster across multiple multi-configuration jobs
 
 ### How:
 
@@ -13,7 +13,7 @@ After installation of this plugin you should see in jenkins [global configuratio
 ![Global jenkins configuration - default](./images/smr-gc-default.jpg)
 
 In job configuration you should see new options for **Add build step** and **Add post-build action** 
-
+ 
 ![Job configuration - default](./images/smr-pc-default.jpg)
 
 To add new labels change in [global configuration](http://localhost:9090/jenkins/configure) in section **Shared maven repository** json file i manner below (no need to care about whitespace)
@@ -49,9 +49,13 @@ mvn install -Danimal.sniffer.skip=true -DskipTests=true
 mvnDebug clean -Djetty.port=9090 hpi:run
 ```
 
-## For unit tests debug with UI:
+## For unit and/or integration tests debug with UI:
 
-Use custom launch configuration use Eclipse/JBDS with [these configurations](launchers/tests)
+Using unit tests for integration testing.
+
+Use custom launch configuration use Eclipse/JBDS with [these configurations](launchers/tests).
+
+Using docker containers (built from [dockerfile](./src/test/resources/dockerfile)) as slave to simulate distributed jenkins environment.
 
 ### Notes:
 - For tests jenkins port is generated (http://localhost:<port>/jenkins/),
@@ -63,3 +67,40 @@ org.apache.maven.lifecycle.LifecycleExecutionException: Failed to execute goal o
 ```
 - also there may be [this issue](https://issues.jenkins-ci.org/browse/JENKINS-30099),
 - in case of errors first delete directories *./target*, *./work*, */tmp/hudson**.
+
+### Docker slave notes:
+
+For tests directory ```/tmp/jenkins``` is used so make sure docker slaves have access there (```su -c "setenforce 0"; chmod -R +777 /tmp/jenkins; chcon -R svirt_sandbox_file_t /tmp/jenkins/archive/```).
+
+#### Build image 
+
+```
+docker build -t j:s ./src/test/resources/
+```
+
+#### Run container
+
+Is hardcoded in test with so there should not be any need to use this.
+
+```
+docker run --net=host -v /tmp/jenkins/archive:/tmp/jenkins/archive j:s
+```
+
+#### To bash into running container
+
+```
+docker exec -it  $(docker ps | grep j:s | awk '{print $1}') bash
+```
+
+#### To stop running containers
+
+In case containers with slaves are still running, stop them.
+
+```
+docker stop $(docker ps -aq --filter ancestor=j:s)
+```
+
+#### To remove and stop all jenkins slaves
+```
+docker stop $(docker ps -aq --filter ancestor=j:s) && docker rm $(docker ps -a | grep j:s | awk '{print $1}')
+```

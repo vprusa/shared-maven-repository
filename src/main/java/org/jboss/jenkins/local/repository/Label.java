@@ -8,41 +8,63 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.model.Computer;
+import hudson.model.Result;
+import hudson.remoting.Channel;
+import hudson.remoting.VirtualChannel;
+import hudson.slaves.SlaveComputer;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONSerializer;
-import jenkins.model.Jenkins;
 
-public class Label {
+public class Label implements Serializable {
 
-	public static boolean GET_LATEST_ARCHIVE = true;
-	public static boolean GET_LATEST_DOWNLOAD = false;
+	private static final long serialVersionUID = 1L;
 
-	private static final Logger log = Logger.getLogger(Label.class.getName());
+	transient public static boolean GET_LATEST_ARCHIVE = true;
+	transient public static boolean GET_LATEST_DOWNLOAD = false;
 
-	private static String labelsPath = "";
+	transient private static String labelsPath = "";
 
 	public static String getLabelsPath() {
 		return labelsPath;
 	}
 
-	private static String resourcesLabelsPath = "/defaultLabels.json";
+	transient private static String resourcesLabelsPath = "/defaultLabels.json";
 
 	private String id;
 	private String name;
 	private boolean isM2Repo;
+	private Result doNotArchiveIfWorseThen;
+	private String preferedCall;
+
+	public String getPreferedCall() {
+		return preferedCall;
+	}
+
+	public void setCall(String preferedCall) {
+		this.preferedCall = preferedCall;
+	}
+
+	public Result getDoNotArchiveIfWorseThen() {
+		return doNotArchiveIfWorseThen;
+	}
+
+	public void setDoNotArchiveIfFail(Result doNotArchiveIfWorseThen) {
+		this.doNotArchiveIfWorseThen = doNotArchiveIfWorseThen;
+	}
 
 	public boolean isM2Repo() {
 		return isM2Repo;
@@ -52,35 +74,70 @@ public class Label {
 		this.isM2Repo = isM2Repo;
 	}
 
-	// private FilePath latestRepoFileDownload;
 	private FilePath latestRepoFileArchive;
 
 	private String downloadPath;
+	private FilePath downloadFilePath;
 
 	public String getDownloadPath() {
 		return downloadPath;
 	}
 
 	private String archivePath;
+	private FilePath archiveFilePath;
 
 	public String getArchivePath() {
 		return archivePath;
 	}
 
-	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo) {
+	private VirtualChannel channel;
+
+	public void setChannel(VirtualChannel channel) {
+		this.channel = channel;
+	}
+
+	public static VirtualChannel getCurrentChannel() {
+		//return channel = (SlaveComputer.getChannelToMaster() == null ? Channel.current() : SlaveComputer.getChannelToMaster()); // this.channel;
+		//return channel = Channel.current();
+		return (Computer.currentComputer() == null || Computer.currentComputer().getChannel() == null ? Channel.current() : Computer.currentComputer().getChannel()); // this.channel;
+	}
+	
+	public VirtualChannel getChannel() {
+		if (channel == null) {
+			return channel = getCurrentChannel();
+		}
+		return channel;
+	}
+
+	public void clearFilePathsCache() {
+		archiveFilePath = null;
+		downloadFilePath = null;
+		latestRepoFileArchive = null;
+	}
+
+	// https://wiki.jenkins.io/display/JENKINS/Making+your+plugin+behave+in+distributed+Jenkins#MakingyourpluginbehaveindistributedJenkins-Performanceconsideration
+	// Gotchas
+	static String jenkinsRootPath = (Jenkins.getInstance() == null || Jenkins.getInstance().getRootPath() == null
+			|| Jenkins.getInstance().getRootPath().getRemote() == null ? ""
+					: Jenkins.getInstance().getRootPath().getRemote()); // jenkinsRoot
+
+	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo, Result doNotArchiveIfWorseThen, String remote) {
 		this.name = name;
 		this.id = id;
 		this.downloadPath = downloadPath;
 		this.archivePath = archivePath;
 		this.isM2Repo = isM2Repo;
+		this.doNotArchiveIfWorseThen = doNotArchiveIfWorseThen;
+		this.preferedCall = remote;
 	}
 
 	public static String decorate(String path, FilePath workspace, EnvVars env) {
 		if (path == null) {
 			return null;
 		}
-		String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
-		String jobWorkspacePath = workspace.getRemote(); // workspace
+
+		// String jobWorkspacePath = workspace == null ? "": workspace.getRemote(); 
+		String jobWorkspacePath = workspace.getRemote(); 
 
 		for (Entry<String, String> entry : env.entrySet()) {
 			String value = entry.getValue();
@@ -103,13 +160,17 @@ public class Label {
 	public FilePath getDownloadFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getDownloadPath() == null)
 			return null;
-		return new FilePath(new File(Label.decorate(getDownloadPath(), workspace, env)));
+		if (downloadFilePath == null)
+			return downloadFilePath = new FilePath(getChannel(), Label.decorate(getDownloadPath(), workspace, env));
+		return downloadFilePath;
 	}
 
 	public FilePath getArchiveFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getArchivePath() == null)
 			return null;
-		return new FilePath(new File(Label.decorate(getArchivePath(), workspace, env)));
+		if (archiveFilePath == null)
+			return archiveFilePath = new FilePath(getChannel(), Label.decorate(getArchivePath(), workspace, env));
+		return archiveFilePath;
 	}
 
 	public FilePath getLatestRepoFileArchive(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
@@ -119,13 +180,6 @@ public class Label {
 		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace, env);
 	}
 
-	/*
-	 * public FilePath getLatestRepoFileDownload(FilePath workspace) throws
-	 * IOException, InterruptedException { if (latestRepoFileDownload != null &&
-	 * latestRepoFileDownload.exists()) { return latestRepoFileDownload; } return
-	 * latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, workspace,
-	 * GET_LATEST_DOWNLOAD); }
-	 */
 	public static Label getUsedLabelById(String label) {
 		return Label.getListInstances().stream().filter(l -> l.getId().matches(label)).findAny().orElse(null);
 	}
@@ -230,13 +284,15 @@ public class Label {
 			if (labelsJson.has(key)) {
 				Object obj = labelsJson.get(key);
 				if (obj instanceof String) {
-					l.add(new Label(key, (String) obj, null, null, false));
+					l.add(new Label(key, (String) obj, null, null, false, null, "Local"));
 				} else if (obj instanceof JSONObject) {
 					JSONObject label = (JSONObject) obj; // labelsJson.getJSONObject(key);
 					l.add(new Label(key, label.getString("name"),
 							label.has("downloadPath") ? label.getString("downloadPath") : null,
 							label.has("archivePath") ? label.getString("archivePath") : null,
-							label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false));
+							label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false,
+							label.has("doNotArchiveIfWorseThen") ? Result.fromString(label.getString("doNotArchiveIfWorseThen")) : null,
+									label.has("isRemoteCall") ? label.getString("isRemoteCall") : "Local"));
 				}
 			}
 
@@ -263,10 +319,10 @@ public class Label {
 				+ getDownloadPath();
 	}
 
-	public static void deleteDir(File folder) {
-		File[] files = folder.listFiles();
+	public static void deleteDir(FilePath folder) throws IOException, InterruptedException {
+		List<FilePath> files = folder.list();
 		if (files != null) { // some JVMs return null for empty dirs
-			for (File f : files) {
+			for (FilePath f : files) {
 				if (f.isDirectory()) {
 					deleteDir(f);
 				} else {

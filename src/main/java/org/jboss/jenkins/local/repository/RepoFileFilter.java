@@ -7,12 +7,13 @@ import java.io.Serializable;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+
+import hudson.FilePath;
 
 public class RepoFileFilter implements FileFilter, Serializable {
 
@@ -20,7 +21,7 @@ public class RepoFileFilter implements FileFilter, Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private Map<String, File> highestVersions = new HashMap<>();
+	private Map<String, FilePath> highestVersions = new HashMap<>();
 
 	@Override
 	public boolean accept(File pathname) {
@@ -34,15 +35,15 @@ public class RepoFileFilter implements FileFilter, Serializable {
 		return true;
 	}
 	
-	public void preparePath(File repositoryFolder) {
-		List<File> allFiles = new ArrayList<>();
-		listFiles(repositoryFolder.toPath(), allFiles);
-		for (File file : allFiles) {
+	public void preparePath(FilePath repositoryFolder) throws IOException, InterruptedException {
+		List<FilePath> allFiles = allFiles = repositoryFolder.list(); 
+		
+		for (FilePath file : allFiles) {
 			if (file.isDirectory()) {
 				// check if starts with digit - ie version 2.6.2.v20161117-2150
 				if (Character.isDigit(file.getName().charAt(0))) {
 					// check if p2 is in path
-					String[] pathParts = file.getAbsolutePath()
+					String[] pathParts = file.getRemote()
 							.split(File.separatorChar == '\\' ? "\\\\" : File.separator);
 					boolean found = false;
 					for (String part : pathParts) {
@@ -52,8 +53,8 @@ public class RepoFileFilter implements FileFilter, Serializable {
 						}
 					}
 					if (found && !wasSearched(file)) {
-						File latestFile = getLatestFile(file);
-						highestVersions.put(latestFile.getParentFile().toPath().toString(), latestFile);
+						FilePath latestFile = getLatestFile(file);
+						highestVersions.put(latestFile.getParent().getRemote(), latestFile);
 					}
 				}
 			}
@@ -61,8 +62,8 @@ public class RepoFileFilter implements FileFilter, Serializable {
 		}
 	}
 
-	private boolean wasSearched(File file) {
-		Path filePath = file.toPath().getParent();
+	private boolean wasSearched(FilePath file) {
+		FilePath filePath = file.getParent();
 		if (filePath != null) {
 			for (String s : highestVersions.keySet()) {
 				if (s.startsWith(filePath.toString())) {
@@ -82,16 +83,15 @@ public class RepoFileFilter implements FileFilter, Serializable {
 				allFiles.add(entry.toFile());
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
-	private File getLatestFile(File pathname) {
-		File highestVersionFile = pathname;
-		File[] otherVersions = pathname.getParentFile().listFiles();
-		if (otherVersions != null && otherVersions.length > 1) {
-			for (File f : otherVersions) {
+	private FilePath getLatestFile(FilePath pathname) throws IOException, InterruptedException {
+		FilePath highestVersionFile = pathname;
+		List<FilePath>otherVersions = pathname.getParent().list();
+		if (otherVersions != null && otherVersions.size() > 1) {
+			for (FilePath f : otherVersions) {
 				if (f.equals(pathname)) {
 					continue;
 				}
