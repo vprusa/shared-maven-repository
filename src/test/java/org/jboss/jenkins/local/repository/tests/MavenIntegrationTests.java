@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.io.Serializable;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -61,7 +62,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 
 	private static final Logger log = Logger.getLogger(MavenIntegrationTests.class.getName());
 
-	String tmpArchivePath = "/tmp/jenkins/archive.zip";
+	//String tmpArchivePath = "/tmp/jenkins/archive.zip";
 
 	/**
 	 * label-root
@@ -154,7 +155,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 	public void testSlave() throws IOException, InterruptedException, ExecutionException, SAXException, FormException {
 		String usedLabel = "label";
 		String downloadPath = "{{workspace}}/repository";
-		String archivePath = "/tmp/jenkins/archive/";
+		final String archivePath = "/tmp/jenkins/archive/";
 		new File(archivePath).mkdirs();
 
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
@@ -166,7 +167,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		final String name = "agent1";
 		String nodeDescription = "agent1";
 		String jenkinsSlavePath = System.getProperty("user.dir");// "/home/jenkins/agent";
-		String remoteFS = "/home/jenkins/agent";
+		final String remoteFS = "/home/jenkins/agent";
 		String numExecutors = "1";
 		Mode mode = DumbSlave.Mode.EXCLUSIVE;
 		String labelString = "agent1";
@@ -189,7 +190,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 
 		new File(jenkinsSlave.getAbsolutePath() + "/slave.jar").delete();
 
-		String wgetCmd = "wget " + Jenkins.getInstance().getRootUrl() + "/jnlpJars/slave.jar -P " + remoteFS;
+		String wgetCmd = "wget " + Jenkins.getInstance().getRootUrl() + "/jnlpJars/slave.jar -P /home/jenkins/";
 		Process wget = Runtime.getRuntime().exec(wgetCmd);
 
 		assertTrue("Cmd " + wgetCmd + " should have already finished", wget.waitFor(10, TimeUnit.SECONDS));
@@ -201,59 +202,30 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 			
 				// TODO stop on the end
 				// docker stop $(docker ps -aq --filter ancestor=j:s)
-
-				String runDockerImageCmd = "docker run --net=host j:s";
+				// docker exec -it  $(docker ps | grep j:s | awk '{print $1}') bash
+				
+				//String runDockerImageCmd = "docker run --net=host j:s";
+				String runDockerImageCmd = "docker run --net=host -v " + archivePath + ":" + archivePath+" j:s ";
 				
 				final Process buildAndRunDockerImage;
 				try {
 					buildAndRunDockerImage = Runtime.getRuntime().exec(runDockerImageCmd);
-
-					Thread threadLogErr = new Thread() {
-						public void run() {
-							String line;
-							BufferedReader error = new BufferedReader(
-									new InputStreamReader(buildAndRunDockerImage.getErrorStream()));
-							try {
-								while ((line = error.readLine()) != null) {
-									log.info("SlaveErr" + line);
-								}
-							} catch (IOException e) {
-								e.printStackTrace();
-							} finally {
-								try {
-									error.close();
-								} catch (IOException e) {
-									e.printStackTrace();
-								}
-							}
-						}
-					};
-					threadLogErr.start();
-
-					Thread threadLogOut = new Thread() {
-						public void run() {
-							String line;
-							BufferedReader input = new BufferedReader(
-									new InputStreamReader(buildAndRunDockerImage.getInputStream()));
-							try {
-								while ((line = input.readLine()) != null) {
-									log.info("SlaveOut" + line);
-								}
-							} catch (IOException e) {
-								e.printStackTrace();
-							} finally {
-								try {
-									input.close();
-								} catch (IOException e) {
-									e.printStackTrace();
-								}
-							}
-						}
-					};
-					threadLogOut.start();
+					
+					startLogThread("SlaveErr",new InputStreamReader(buildAndRunDockerImage.getErrorStream()) );
+					startLogThread("SlaveOut",new InputStreamReader(buildAndRunDockerImage.getInputStream()) );
 
 					assertTrue("Cmd " + runDockerImageCmd + " should have already finished",
 							buildAndRunDockerImage.waitFor(360, TimeUnit.SECONDS));
+					
+					final Process createTestFileOnSlave;
+					// create test file on slave
+					String testFilePathOnSlave = remoteFS + "/workspace/unitTest-1/" + testFileName;
+					String createTestFileOnSlaveCmd = "docker exec -it  $(docker ps | grep j:s | awk '{print $1}') touch " + testFilePathOnSlave;
+					createTestFileOnSlave = Runtime.getRuntime().exec(createTestFileOnSlaveCmd );
+
+					assertTrue("Cmd " + createTestFileOnSlaveCmd + " should have already finished",
+							createTestFileOnSlave.waitFor(60, TimeUnit.SECONDS));
+					
 				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -262,6 +234,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		};
 		threadDockerSlave.start();
 
+		
 		assertFalse("Mehotd Label.getLabelsPath() should not return empty value by now",
 				Label.getLabelsPath().isEmpty());
 		assertTrue("File with path " + Label.getLabelsPath() + " should exist",
@@ -270,6 +243,29 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		// here new labels should be updated in configuration
 
 		configureBildAndVerify(2, usedLabel, usedLabel);
+	}
+	
+	public void startLogThread(final String prefix, final Reader reader) {
+		Thread threadLogOut = new Thread() {
+			public void run() {
+				String line;
+				BufferedReader input = new BufferedReader(reader);
+				try {
+					while ((line = input.readLine()) != null) {
+						log.info(prefix + line);
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				} finally {
+					try {
+						input.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		};
+		threadLogOut.start();
 	}
 
 }

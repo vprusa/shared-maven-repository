@@ -70,10 +70,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 				// label.updateChannel(launcher.getChannel());
 				// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 				// Define what should be run on the slave for this build
-				JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(label, workspace, /*
-																											 * listener,
-																											 */
-						env);
+				JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(label, workspace, env, listener);
 
 				// Get a "channel" to the build machine and run the task there
 				// new FilePath(launcher.getChannel(), label.getArchiveFilePath(workspace,
@@ -163,7 +160,7 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 		 * This human readable name is used in the configuration screen.
 		 */
 		public String getDisplayName() {
-			return "Archive .m2 repository";
+			return "Archive repository";
 		}
 
 		@Override

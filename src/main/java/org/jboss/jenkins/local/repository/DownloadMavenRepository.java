@@ -88,7 +88,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 
 			// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 			// Define what should be run on the slave for this build
-			JenkinsSlaveDownloadCallable slaveTask = new JenkinsSlaveDownloadCallable(archivedZipFile, downloadZipFile, downloadDest, listener);
+			JenkinsSlaveDownloadCallable slaveTask = new JenkinsSlaveDownloadCallable(archivedZipFile, downloadZipFile, downloadDest, workspace/*listener*/);
 
 			// Get a "channel" to the build machine and run the task there
 			String status = launcher.getChannel().call(slaveTask);
@@ -113,7 +113,7 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 		 * This human readable name is used in the configuration screen.
 		 */
 		public String getDisplayName() {
-			return "Download .m2 repository";
+			return "Download repository";
 		}
 
 		@Override

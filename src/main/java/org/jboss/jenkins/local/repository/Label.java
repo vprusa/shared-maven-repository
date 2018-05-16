@@ -32,7 +32,7 @@ public class Label implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	
+
 	transient public static boolean GET_LATEST_ARCHIVE = true;
 	transient public static boolean GET_LATEST_DOWNLOAD = false;
 
@@ -47,7 +47,7 @@ public class Label implements Serializable {
 	private String id;
 	private String name;
 	private boolean isM2Repo;
-	
+
 	public boolean isM2Repo() {
 		return isM2Repo;
 	}
@@ -55,7 +55,6 @@ public class Label implements Serializable {
 	public void setM2Repo(boolean isM2Repo) {
 		this.isM2Repo = isM2Repo;
 	}
-
 
 	// private FilePath latestRepoFileDownload;
 	private FilePath latestRepoFileArchive;
@@ -73,15 +72,18 @@ public class Label implements Serializable {
 	public String getArchivePath() {
 		return archivePath;
 	}
-	
+
 	public void clearFilePathsCache() {
 		archiveFilePath = null;
 		downloadFilePath = null;
 	}
+
 	// https://wiki.jenkins.io/display/JENKINS/Making+your+plugin+behave+in+distributed+Jenkins#MakingyourpluginbehaveindistributedJenkins-Performanceconsideration
 	// Gotchas
-	static String jenkinsRootPath = Jenkins.getInstance().getRootPath().getRemote(); // jenkinsRoot
-	
+	static String jenkinsRootPath = (Jenkins.getInstance() == null || Jenkins.getInstance().getRootPath() == null
+			|| Jenkins.getInstance().getRootPath().getRemote() == null ? ""
+					: Jenkins.getInstance().getRootPath().getRemote()); // jenkinsRoot
+
 	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo) {
 		this.name = name;
 		this.id = id;
@@ -94,7 +96,7 @@ public class Label implements Serializable {
 		if (path == null) {
 			return null;
 		}
-		
+
 		String jobWorkspacePath = workspace.getRemote(); // workspace
 
 		for (Entry<String, String> entry : env.entrySet()) {
@@ -118,17 +120,20 @@ public class Label implements Serializable {
 	public FilePath getDownloadFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getDownloadPath() == null)
 			return null;
-		//return new FilePath(new File(Label.decorate(getDownloadPath(), workspace, env)));
-		if(downloadFilePath  == null)
-			return downloadFilePath = new FilePath(Channel.current(), Label.decorate(getDownloadPath(), workspace, env));
+		// return new FilePath(new File(Label.decorate(getDownloadPath(), workspace,
+		// env)));
+		if (downloadFilePath == null)
+			return downloadFilePath = new FilePath(Channel.current(),
+					Label.decorate(getDownloadPath(), workspace, env));
 		return downloadFilePath;
 	}
 
 	public FilePath getArchiveFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getArchivePath() == null)
 			return null;
-		//return new FilePath(new File(Label.decorate(getArchivePath(), workspace, env)));
-		if(archiveFilePath  == null)
+		// return new FilePath(new File(Label.decorate(getArchivePath(), workspace,
+		// env)));
+		if (archiveFilePath == null)
 			return archiveFilePath = new FilePath(Channel.current(), Label.decorate(getArchivePath(), workspace, env));
 		return archiveFilePath;
 	}
@@ -297,5 +302,5 @@ public class Label implements Serializable {
 		}
 		folder.delete();
 	}
-	
+
 }
