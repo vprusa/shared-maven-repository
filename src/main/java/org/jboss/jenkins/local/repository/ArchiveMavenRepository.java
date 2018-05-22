@@ -2,12 +2,10 @@ package org.jboss.jenkins.local.repository;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
-import org.apache.commons.lang.SerializationUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -22,6 +20,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
+import hudson.tasks.Builder;
 import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import hudson.util.FormValidation;
@@ -30,13 +29,11 @@ import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 
-public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep {
+public class ArchiveMavenRepository extends Builder implements SimpleBuildStep {
+//public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep {
 
 	private static final Logger log = Logger.getLogger(ArchiveMavenRepository.class.getName());
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 
 	public String usedLabel;
@@ -55,28 +52,29 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 
 			EnvVars env = build.getEnvironment(listener);
 
-			if (buildResult != null && buildResult.isWorseThan(Result.FAILURE)) {
+			Label label = Label.getUsedLabelById(getUsedLabel());
+			if ((label.getDoNotArchiveIfWorseThen() == null && buildResult != null && buildResult.isWorseThan(Result.FAILURE) ) || (label.getDoNotArchiveIfWorseThen() != null && (buildResult != null && buildResult.isWorseThan(label.getDoNotArchiveIfWorseThen())))) {
 				listener.getLogger()
-						.println("Build ended with status worse than FAILURE. Maven repository wont be archived");
+						.println("Build ended with status worse than " + (label.getDoNotArchiveIfWorseThen() == null ? "FAILURE" : label.getDoNotArchiveIfWorseThen().toString()) + ". Maven repository wont be archived");
 				return;
 			}
 			listener.getLogger().println("Archive private maven repository");
-			Label label = Label.getUsedLabelById(getUsedLabel());
+			
 			if (label != null) {
 
 				listener.getLogger()
 						.println("Found files for path: " + label.getDownloadFilePath(workspace, env).getRemote());
-
+				
+				//listener.getLogger().println("launcher.getChannel()");
+				
+				label.setChannel(launcher.getChannel());
 				// label.updateChannel(launcher.getChannel());
 				// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 				// Define what should be run on the slave for this build
-				JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(label, workspace, env, listener);
-
+				JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(workspace, env, listener, label);
+				String status = slaveTask.call();
 				// Get a "channel" to the build machine and run the task there
-				// new FilePath(launcher.getChannel(), label.getArchiveFilePath(workspace,
-				// env).getRemote());
-				String status = launcher.getChannel().call(slaveTask);
-
+				//String status = launcher.getChannel().call(slaveTask);
 				listener.getLogger().println("Jenkins repository slave execution status: " + status);
 
 				return;
@@ -100,7 +98,8 @@ public class ArchiveMavenRepository extends Recorder implements SimpleBuildStep 
 	}
 
 	@Extension
-	public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements Serializable {
+	//public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> implements Serializable {
+	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> implements Serializable{
 
 		/**
 		 * In order to load the persisted global configuration, you have to call load()

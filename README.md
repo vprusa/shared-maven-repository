@@ -70,7 +70,7 @@ org.apache.maven.lifecycle.LifecycleExecutionException: Failed to execute goal o
 
 ### Docker slave notes:
 
-For tests directory ```/tmp/jenkins``` is used so make sure docker slaves have access there (```chmod R +777 /tmp/jenkins``` & ```chcon -Rt svirt_sandbox_file_t /tmp/jenkins/archive/```).
+For tests directory ```/tmp/jenkins``` is used so make sure docker slaves have access there (```su -c "setenforce 0"; chmod -R +777 /tmp/jenkins; chcon -R svirt_sandbox_file_t /tmp/jenkins/archive/```).
 
 #### Build image 
 
@@ -98,4 +98,9 @@ In case containers with slaves are still running, stop them.
 
 ```
 docker stop $(docker ps -aq --filter ancestor=j:s)
+```
+
+#### To remove and stop all jenkins slaves
+```
+docker stop $(docker ps -aq --filter ancestor=j:s) && docker rm $(docker ps -a | grep j:s | awk '{print $1}')
 ```

@@ -62,12 +62,12 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 
 	private static final Logger log = Logger.getLogger(MavenIntegrationTests.class.getName());
 
-	//String tmpArchivePath = "/tmp/jenkins/archive.zip";
+	// String tmpArchivePath = "/tmp/jenkins/archive.zip";
 
 	/**
 	 * label-root
 	 */
-	// @Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDownloadAndArchiveForRootPath()
 			throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -92,7 +92,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 	/**
 	 * label-workspace
 	 */
-	// @Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testDownloadAndArchiveForWorkspacePath()
 			throws IOException, InterruptedException, ExecutionException, SAXException {
@@ -118,7 +118,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 	/**
 	 * label serialization test
 	 */
-	// @Test
+	//@Test
 	@WithRemoveDuplicatedPlugin("shared-maven-repository")
 	public void testSerialization() throws IOException, InterruptedException, ExecutionException, SAXException {
 		String usedLabel = "label";
@@ -128,14 +128,15 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
 				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath + "'}}");
 		Label.saveLabels();
-		Label label = new Label(usedLabel, usedLabel, downloadPath, archivePath, false);
+		Label label = new Label(usedLabel, usedLabel, downloadPath, archivePath, false, null);
 		ArrayList<FreeStyleBuild> builds = configureBildAndVerify(1, usedLabel, usedLabel);
 
 		FreeStyleBuild last = builds.get(0);
 
 		EnvVars env = new EnvVars();
 		FilePath workspace = project.getSomeWorkspace();
-		JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(label, workspace, env);
+		// Label label, FilePath workspace, EnvVars env, TaskListener listene
+		JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(workspace, env, null, label);
 
 		SerializationUtils.serialize(label);
 		SerializationUtils.serialize(workspace);
@@ -193,47 +194,104 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		String wgetCmd = "wget " + Jenkins.getInstance().getRootUrl() + "/jnlpJars/slave.jar -P /home/jenkins/";
 		Process wget = Runtime.getRuntime().exec(wgetCmd);
 
-		assertTrue("Cmd " + wgetCmd + " should have already finished", wget.waitFor(10, TimeUnit.SECONDS));
+	//	assertTrue("Cmd " + wgetCmd + " should have already finished", wget.waitFor(10, TimeUnit.SECONDS));
 
 		Label.copyResourceTo("/dockerfile", jenkinsSlave.getAbsolutePath() + "/dockerfile", true);
-
+		final String testFileDirPathOnSlave = remoteFS + "/workspace/unitTest-1/repository/";
+		final String testFilePathOnSlave = testFileDirPathOnSlave + testFileName;
+		
+		//DockerThread threadDockerSlave = new DockerThread();
+		//threadDockerSlave.start();
+		
 		Thread threadDockerSlave = new Thread() {
+			@Override
 			public void run() {
-			
-				// TODO stop on the end
-				// docker stop $(docker ps -aq --filter ancestor=j:s)
-				// docker exec -it  $(docker ps | grep j:s | awk '{print $1}') bash
 				
-				//String runDockerImageCmd = "docker run --net=host j:s";
-				String runDockerImageCmd = "docker run --net=host -v " + archivePath + ":" + archivePath+" j:s ";
-				
-				final Process buildAndRunDockerImage;
 				try {
-					buildAndRunDockerImage = Runtime.getRuntime().exec(runDockerImageCmd);
-					
-					startLogThread("SlaveErr",new InputStreamReader(buildAndRunDockerImage.getErrorStream()) );
-					startLogThread("SlaveOut",new InputStreamReader(buildAndRunDockerImage.getInputStream()) );
 
-					assertTrue("Cmd " + runDockerImageCmd + " should have already finished",
-							buildAndRunDockerImage.waitFor(360, TimeUnit.SECONDS));
-					
-					final Process createTestFileOnSlave;
-					// create test file on slave
-					String testFilePathOnSlave = remoteFS + "/workspace/unitTest-1/" + testFileName;
-					String createTestFileOnSlaveCmd = "docker exec -it  $(docker ps | grep j:s | awk '{print $1}') touch " + testFilePathOnSlave;
-					createTestFileOnSlave = Runtime.getRuntime().exec(createTestFileOnSlaveCmd );
+					// TODO stop on the end
+					// docker stop $(docker ps -aq --filter ancestor=j:s)
+					// docker exec -it $(docker ps | grep j:s | awk '{print $1}') bash
 
-					assertTrue("Cmd " + createTestFileOnSlaveCmd + " should have already finished",
-							createTestFileOnSlave.waitFor(60, TimeUnit.SECONDS));
+					//final String runDockerImageCmd = "docker run --net=host j:s";
+					String runDockerImageCmd = "docker run --name js --net=host -v " + archivePath + ":" + archivePath + " j:s";
+					//String runDockerImageCmd = "docker run --net=host -v " + archivePath + ":" + archivePath + " j:s mkdir -p "+testFileDirPathOnSlave+" && touch "+testFilePathOnSlave+"";
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","mkdir","-p",testFileDirPathOnSlave,"&&","touch",testFilePathOnSlave};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c","'","mkdir","-p",testFileDirPathOnSlave,"&&","touch",testFilePathOnSlave,"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c","'","mkdir","-p",testFileDirPathOnSlave,"&&","touch",testFilePathOnSlave,"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c","'mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c 'mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash -c 'mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +""};
+
+					//Process buildAndRunDockerImage;
+					Process buildAndRunDockerImage = Runtime.getRuntime().exec(runDockerImageCmd);
+
+					startLogThread("SlaveErr", new InputStreamReader(buildAndRunDockerImage.getErrorStream()));
+					startLogThread("SlaveOut", new InputStreamReader(buildAndRunDockerImage.getInputStream()));
+
+					Thread threadDockerSlaveCreateTestFileDir = new Thread() {
+						@Override 
+						public void run() {
+							try {
+								Thread.currentThread().sleep(7000);
+							} catch (InterruptedException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							}
+							try {
+								//String createTestFileOnSlaveCmd2 = "docker exec -it $(docker ps | grep j:s | awk '{print $1}') mkdir -p " + testFileDirPathOnSlave;
+								//String createTestFileOnSlaveCmd2 = "docker exec -it \\$(docker ps | grep j:s | awk '{print \\$1}') bash -c 'mkdir -p "+testFileDirPathOnSlave+" && touch "+ testFilePathOnSlave +";'";
+								//String createTestFileOnSlaveCmd2 = "docker exec -it js bash -c 'mkdir -p "+testFileDirPathOnSlave+"; touch "+ testFilePathOnSlave +";'";
+								//String createTestFileOnSlaveCmd2 = "docker exec -i js bash -c 'mkdir -p "+testFileDirPathOnSlave+"; touch "+ testFilePathOnSlave +";'";
+								String createTestFileOnSlaveCmd2 = "docker exec -i js mkdir -p "+testFileDirPathOnSlave;
+								//String[] createTestFileOnSlaveCmd2 = new String[] {"docker","exec","-it","$(","docker","ps","|",		"grep","j:s","|","awk","'{","print","$1","}'",")","mkdir","-p",testFileDirPathOnSlave};
+								
+								Process createTestFileOnSlave2 = Runtime.getRuntime().exec(createTestFileOnSlaveCmd2);
+								
+								startLogThread("SlaveErrTestFile", new InputStreamReader(createTestFileOnSlave2.getErrorStream()));
+								startLogThread("SlaveOutTestFile", new InputStreamReader(createTestFileOnSlave2.getInputStream()));
+								
+								Thread threadDockerSlaveCreateTestFile = new Thread() {
+									@Override 
+									public void run() {
+										try {
+											Thread.currentThread().sleep(3000);
+										} catch (InterruptedException e1) {
+											e1.printStackTrace();
+										}
+										try {
+											String createTestFileOnSlaveCmd2 = "docker exec -i js touch "+testFilePathOnSlave;
+											
+											Process createTestFileOnSlave2 = Runtime.getRuntime().exec(createTestFileOnSlaveCmd2);
+											
+											startLogThread("SlaveErrTestFile", new InputStreamReader(createTestFileOnSlave2.getErrorStream()));
+											startLogThread("SlaveOutTestFile", new InputStreamReader(createTestFileOnSlave2.getInputStream()));
+											
+											//assertTrue("Cmd " + createTestFileOnSlaveCmd2 + " should have already finished",createTestFileOnSlave2.waitFor(360, TimeUnit.SECONDS));
+											
+										}catch(Exception e) {e.printStackTrace();}
+									}
+								};
+								threadDockerSlaveCreateTestFile.start();
+								//assertTrue("Cmd " + createTestFileOnSlaveCmd2 + " should have already finished",createTestFileOnSlave2.waitFor(360, TimeUnit.SECONDS));
+								
+							}catch(Exception e) {e.printStackTrace();}
+						}
+					};
+					threadDockerSlaveCreateTestFileDir.start();
 					
-				} catch (IOException | InterruptedException e) {
+					//assertTrue("Cmd " + runDockerImageCmd + " should have already finished",buildAndRunDockerImage.waitFor(3600, TimeUnit.SECONDS));
+									//} catch (IOException | InterruptedException e) {
+				} catch (Exception e) {
 					e.printStackTrace();
 				}
 
 			}
 		};
 		threadDockerSlave.start();
-
+		
+		Thread.currentThread().sleep(11000);
 		
 		assertFalse("Mehotd Label.getLabelsPath() should not return empty value by now",
 				Label.getLabelsPath().isEmpty());
@@ -243,16 +301,127 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		// here new labels should be updated in configuration
 
 		configureBildAndVerify(2, usedLabel, usedLabel);
+		
+		// stop docker
+		
+		// docker stop $(docker ps -aq --filter ancestor=j:s) && docker rm $(docker ps -a | grep j:s | awk '{print $1}')
+		/*String dockerStopAndRemoveCmd = "docker stop js && docker rm js";
+		Thread threadDockerSlaveCreateTestFile = new Thread() {
+			@Override 
+			public void run() {
+				try {
+					Thread.currentThread().sleep(3000);
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
+				}
+				try {
+					String createTestFileOnSlaveCmd2 = "docker exec -i js touch "+testFilePathOnSlave;
+					
+					Process createTestFileOnSlave2 = Runtime.getRuntime().exec(createTestFileOnSlaveCmd2);
+					
+					startLogThread("SlaveErrTestFile", new InputStreamReader(createTestFileOnSlave2.getErrorStream()));
+					startLogThread("SlaveOutTestFile", new InputStreamReader(createTestFileOnSlave2.getInputStream()));
+					
+					//assertTrue("Cmd " + createTestFileOnSlaveCmd2 + " should have already finished",createTestFileOnSlave2.waitFor(360, TimeUnit.SECONDS));
+					
+				}catch(Exception e) {e.printStackTrace();}
+			}
+		};
+		threadDockerSlaveCreateTestFile.start();
+		*/
 	}
 	
+	public class DockerThread extends Thread{
+
+			@Override
+			public void run() {
+				
+				try {
+
+					// TODO stop on the end
+					// docker stop $(docker ps -aq --filter ancestor=j:s)
+					// docker exec -it $(docker ps | grep j:s | awk '{print $1}') bash
+
+					//final String runDockerImageCmd = "docker run --net=host j:s";
+					String archivePath2 = "/tmp/jenkins/archive/";
+					String runDockerImageCmd = "docker run --name js --net=host -v " + archivePath2 + ":" + archivePath2 + " j:s";
+					//String runDockerImageCmd = "docker run --net=host -v " + archivePath + ":" + archivePath + " j:s mkdir -p "+testFileDirPathOnSlave+" && touch "+testFilePathOnSlave+"";
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","mkdir","-p",testFileDirPathOnSlave,"&&","touch",testFilePathOnSlave};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c","'","mkdir","-p",testFileDirPathOnSlave,"&&","touch",testFilePathOnSlave,"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c","'","mkdir","-p",testFileDirPathOnSlave,"&&","touch",testFilePathOnSlave,"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c","'mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash","-c 'mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","bash -c 'mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +"'"};
+					//String[] runDockerImageCmd = new String[]{"docker","run","--net=host","-v", archivePath + ":" + archivePath, "j:s","mkdir -p " + testFileDirPathOnSlave +" && touch " + testFilePathOnSlave +""};
+
+					//Process buildAndRunDockerImage;
+					Process buildAndRunDockerImage = Runtime.getRuntime().exec(runDockerImageCmd);
+
+					startLogThread("SlaveErr", new InputStreamReader(buildAndRunDockerImage.getErrorStream()));
+					startLogThread("SlaveOut", new InputStreamReader(buildAndRunDockerImage.getInputStream()));
+
+					//assertTrue("Cmd " + runDockerImageCmd + " should have already finished",buildAndRunDockerImage.waitFor(360, TimeUnit.SECONDS));
+					//	remoteFS = "/home/jenkins/agent";
+				
+					
+					Process createTestFileOnSlave2;
+					//Process createTestFileOnSlave3;
+					// create test file on slave
+	
+					
+					// docker exec -it  $(docker ps | grep j:s | awk '{print $1}') bash -c 'mkdir -p /home/jenkins/agent/workspace/unitTest-1/ && touch /home/jenkins/agent/workspace/unitTest-1/test.txt'
+					// docker exec -it  $(docker ps | grep j:s | awk '{print $1}') bash -c 'mkdir -p /home/jenkins/agent/workspace/unitTest-1/repository/ && touch /home/jenkins/agent/workspace/unitTest-1/repository/test.txt'
+					//	String createTestFileOnSlaveCmd = "docker exec -it  $(docker ps | grep j:s | awk '{print $1}') bash -c 'mkdir -p " + testFileDirPathOnSlave + " ; touch "		+ testFilePathOnSlave + ";'";
+					
+					//createTestFileOnSlave = Runtime.getRuntime().exec(createTestFileOnSlaveCmd);
+					
+					//startLogThread("SlaveErrTestFile", new InputStreamReader(createTestFileOnSlave.getErrorStream()));
+					//startLogThread("SlaveOutTestFile", new InputStreamReader(createTestFileOnSlave.getInputStream()));
+
+					//assertTrue("Cmd " + createTestFileOnSlaveCmd + " should have already finished",
+					//		createTestFileOnSlave.waitFor(60, TimeUnit.SECONDS));
+
+					//String createTestFileOnSlaveCmd2 = "docker exec -it \\$(docker ps \\| grep j:s \\| awk '{print \\$1}') mkdir -p " + testFileDirPathOnSlave;
+					//String createTestFileOnSlaveCmd2 = "docker exec -it $(docker ps | grep j:s | awk '{print $1}') mkdir -p " + testFileDirPathOnSlave;
+					//String[] createTestFileOnSlaveCmd2 = new String[] {"docker","exec","-it","$(","docker","ps","|",		"grep","j:s","|","awk","'{","print","$1","}'",")","mkdir","-p",testFileDirPathOnSlave};
+					
+					//createTestFileOnSlave2 = Runtime.getRuntime().exec(createTestFileOnSlaveCmd2);
+					
+					//startLogThread("SlaveErrTestFile", new InputStreamReader(createTestFileOnSlave.getErrorStream()));
+					//startLogThread("SlaveOutTestFile", new InputStreamReader(createTestFileOnSlave.getInputStream()));
+
+					//assertTrue("Cmd " + createTestFileOnSlaveCmd2 + " should have already finished",createTestFileOnSlave2.waitFor(60, TimeUnit.SECONDS));
+				
+					//String createTestFileOnSlaveCmd3 = "docker exec -it \\$(docker ps | grep j:s | awk '{print $1}') touch " + testFilePathOnSlave;
+					//String createTestFileOnSlaveCmd3 = "docker exec -it $(docker ps | grep j:s | awk '{print $1}') touch " + testFilePathOnSlave;
+					
+					//createTestFileOnSlave3 = Runtime.getRuntime().exec(createTestFileOnSlaveCmd3);
+					
+					//startLogThread("SlaveErrTestFile", new InputStreamReader(createTestFileOnSlave.getErrorStream()));
+					//startLogThread("SlaveOutTestFile", new InputStreamReader(createTestFileOnSlave.getInputStream()));
+
+					//assertTrue("Cmd " + createTestFileOnSlaveCmd3 + " should have already finished",createTestFileOnSlave3.waitFor(60, TimeUnit.SECONDS));
+							
+					
+				//} catch (IOException | InterruptedException e) {
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
+			}
+	}
+
 	public void startLogThread(final String prefix, final Reader reader) {
 		Thread threadLogOut = new Thread() {
+			@Override
 			public void run() {
 				String line;
 				BufferedReader input = new BufferedReader(reader);
 				try {
 					while ((line = input.readLine()) != null) {
-						log.info(prefix + line);
+						//log.info(prefix + line);
+						//log.info(prefix + line);
+						System.out.println(prefix + line);
 					}
 				} catch (IOException e) {
 					e.printStackTrace();

@@ -9,6 +9,7 @@ import java.util.logging.SimpleFormatter;
 
 import org.jenkinsci.remoting.RoleChecker;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.TaskListener;
 import hudson.remoting.Callable;
@@ -21,13 +22,18 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 	private static final long serialVersionUID = 1L;
 
 	TaskListener listener;
+	FilePath workspace;
+	EnvVars env;
 	String logDirPath;
-	static String loggerName = "shared-maven-repository-slave-base";
 	Logger logger;
 	PrintStream ps;
+	Label label;
 
-	public JenkinsSlaveCallableBase(TaskListener listener, FilePath workspace) {
+	public JenkinsSlaveCallableBase(TaskListener listener, FilePath workspace, EnvVars env, Label label) {
 		this.listener = listener;
+		this.workspace = workspace;
+		this.env = env;
+		this.label = label;
 		this.logDirPath = workspace.getRemote();
 		// this.logDirPath = "/local/git/";
 	}
@@ -44,7 +50,7 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 		}
 	}
 
-	public void initLogging() {
+	public void initLogging(String loggerName) {
 		String path = this.logDirPath + "/" + loggerName + ".log";
 		if (listener == null) {
 			logger = Logger.getLogger(loggerName);
@@ -55,7 +61,7 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 				logger.addHandler(fh);
 				SimpleFormatter formatter = new SimpleFormatter();
 				fh.setFormatter(formatter);
-				info("Loggin as java.util.logging.Logger into: " + path);
+				info("Logging as java.util.logging.Logger into: " + path);
 			} catch (SecurityException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -73,7 +79,7 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 
 	@Override
 	public String call() throws IOException {
-		initLogging();
+		initLogging("shared-maven-repository-slave-base");
 		return "DoneBase";
 	}
 

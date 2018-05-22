@@ -1,18 +1,11 @@
 package org.jboss.jenkins.local.repository;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
-import java.util.logging.Logger;
-
-import org.jfree.util.Log;
 
 import hudson.EnvVars;
 import hudson.FilePath;
-import hudson.model.Node;
-import hudson.model.TaskListener;
 import hudson.remoting.Channel;
 import hudson.remoting.LocalChannel;
 import jenkins.model.Jenkins;
@@ -37,7 +30,6 @@ public class MasterMavenRepository {
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 
@@ -59,52 +51,44 @@ public class MasterMavenRepository {
 	}
 
 	public void uploadRepository(FilePath repositoryTar, FilePath workspace, /* TaskListener listener, */ Label label,
-			EnvVars env, Logger logger) throws IOException, InterruptedException {
-		//Jenkins jenkins = Jenkins.getInstance();
-		//if (jenkins != null) {
-			// listener.getLogger().println("Upload " + repositoryTar.absolutize().toURI() +
-			// " to Jenkins master");
+			EnvVars env, JenkinsSlaveCallableBase logger) throws IOException, InterruptedException {
 		try {
-			if(logger != null)
-				logger.info("msg");
 			String path = label.getArchiveFilePath(workspace, env).getRemote();
-			logger.info("path1: " + path);
-			logger.info("repositoryTar: " + repositoryTar.toString());
-			logger.info("workspace: " + workspace.toString());
-			logger.info("repositoryTar: " + repositoryTar.getRemote());
-			logger.info("workspace: " + workspace.getRemote());
-			logger.info("env: " + env.toString());
-			logger.info(workspace.toString());
 
-			FilePath masterRepo = new FilePath(new FilePath(Channel.current(), path), repositoryTar.getName());
-			logger.info("masterRepo: " + masterRepo.getRemote());
-			repositoryTar.copyTo(masterRepo);
-			// listener.getLogger().println("Repository uploaded to " +
-			// masterRepo.absolutize().toURI());
+			FilePath archivedZipLocation = new FilePath(new FilePath(workspace.getChannel()/*label.getChannel()*/, path), repositoryTar.getName());
+
+			// create dirs if not exists
+			if(!archivedZipLocation.getParent().exists()) {
+				archivedZipLocation.getParent().mkdirs();
+			}
+			repositoryTar.copyTo(archivedZipLocation);
+			logger.info("Repository uploaded to " + archivedZipLocation.absolutize().toURI());
 			repositoryTar.delete();
-			deleteOldRepositories(/* listener, */ workspace, label, env);
-		//}
-		}catch(Exception e) {
+			deleteOldRepositories(logger, workspace, label, env);
+			// }
+		} catch (Exception e) {
+			logger.info(e.getMessage());
 			e.printStackTrace();
-			logger.info("e.getMessage: " + e.getMessage());
+			// logger.info("e.getMessage: " + e.getMessage());
 		}
 	}
 
-	private void deleteOldRepositories(/* TaskListener listener, */FilePath workspace, Label label, EnvVars env)
+	private void deleteOldRepositories(JenkinsSlaveCallableBase logger, FilePath workspace, Label label, EnvVars env)
 			throws IOException, InterruptedException {
-		// listener.getLogger().println("Delete old repositories from master");
+		logger.info("Delete old repositories from master");
 		List<FilePath> repositories = label.getArchiveFilePath(workspace, env).list();
 		if (repositories != null) {
 			for (FilePath repo : repositories) {
 				String repoName = repo.getName();
 				if (!repoName.equals(label.getLatestRepoFileArchive(workspace, env).getName())) {
 					boolean deleted = repo.delete();
-					/*
-					 * if (!deleted) {
-					 * listener.getLogger().println("Unable to delete old repository " + repoName);
-					 * } else { listener.getLogger().println("Deleted old repository from master " +
-					 * repoName); }
-					 */
+
+					if (!deleted) {
+						logger.info("Unable to delete old repository " + repoName);
+					} else {
+						logger.info("Deleted old repository from master " + repoName);
+					}
+
 				}
 			}
 		}
@@ -117,33 +101,22 @@ public class MasterMavenRepository {
 	 */
 	public static FilePath getLatestRepo(Label label, FilePath workspace, EnvVars env)
 			throws IOException, InterruptedException {
-		// if (repositoriesDir == null)
-		// getInstance();
-		// Jenkins.getInstance().
 
 		FilePath archiveFile = label.getArchiveFilePath(workspace, env);
 
-		System.out.println(archiveFile.getChannel().toString());
-		
-		
-		if (!archiveFile.exists() || !(new File(archiveFile.getRemote())).exists() || archiveFile.getChannel() == null || archiveFile.getChannel() instanceof LocalChannel ) {
+		if (!archiveFile.exists() || !(new File(archiveFile.getRemote())).exists() || archiveFile.getChannel() == null
+				|| archiveFile.getChannel() instanceof LocalChannel) {
 			// TODO check if there are any exception for master node named master
-			Jenkins j = Jenkins.getInstance();
-			List<Node> ns = j.getNodes(); //getNode("master");
-			Node n = ns.get(0); //null;
-			//j.get
-			
-			for(Node n_ : ns) {
-				System.out.println(n_.getNodeName());
-			}
-			FilePath master = new FilePath(Channel.current(), archiveFile.getRemote());
+
+			//FilePath master = new FilePath(Channel.current(), archiveFile.getRemote());
+			FilePath master = new FilePath(label.getChannel(), archiveFile.getRemote());
 			if (master.exists()) {
-				archiveFile = master; 
+				archiveFile = master;
 			} else {
 				return null;
 			}
 		}
-		
+
 		FilePath archiveDir;
 		if (archiveFile.isDirectory()) {
 			archiveDir = archiveFile;
@@ -151,21 +124,13 @@ public class MasterMavenRepository {
 			archiveDir = archiveFile.getParent();
 		}
 
-		// FilePath archiveDirFile = new FilePath(archiveDir.getRemote());
-		// if (archiveDirFile == null || !archiveDirFile.exists()) {
-		// return null;
-		// }
-
 		FilePath lastModifiedFile = lastFileModified(archiveDir);
-		if (lastModifiedFile == null) {
-			return null;
-		}
 
 		return lastModifiedFile;
 	}
-	
+
 	private static FilePath lastFileModified(FilePath dir) throws IOException, InterruptedException {
-		dir = new FilePath(Channel.current(), dir.getRemote());
+		//dir = new FilePath(Channel.current(), dir.getRemote());
 		List<FilePath> files = dir.list(new CustomFileFilter());
 		long lastMod = Long.MIN_VALUE;
 		FilePath choice = null;

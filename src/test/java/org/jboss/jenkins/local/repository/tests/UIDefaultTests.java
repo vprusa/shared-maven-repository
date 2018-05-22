@@ -78,8 +78,8 @@ public class UIDefaultTests {
 				//"<option label=\"default\" value=\"default\" selected=\"selected\">" 
 						"value=\"default\""};
 
-		project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
-		//project.getBuildersList().add(new ArchiveMavenRepository(usedLabel));
+		//project.getPublishersList().add(new ArchiveMavenRepository(usedLabel));
+		project.getBuildersList().add(new ArchiveMavenRepository(usedLabel));
 
 		verifyPageFor(expectedConfigurationPageTexts, "job/" + projectName + "/configure");
 	}

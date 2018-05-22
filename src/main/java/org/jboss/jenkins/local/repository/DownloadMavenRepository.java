@@ -3,7 +3,6 @@ package org.jboss.jenkins.local.repository;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang.SerializationUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -25,9 +24,6 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 
 	private static final Logger log = Logger.getLogger(DownloadMavenRepository.class.getName());
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 
 	public String usedLabel;
@@ -56,42 +52,21 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 		
 		if (jenkins != null) {
 			EnvVars env = build.getEnvironment(listener);
-			String usedLabelId = getUsedLabel();
-			Label usedLabel = Label.getUsedLabelById(usedLabelId);
-			if (usedLabel == null) {
+			String usedId = getUsedLabel();
+			Label used = Label.getUsedLabelById(usedId);
+			if (used == null) {
 				listener.getLogger()
-						.println("Jenkins master does not have any maven repository for label " + usedLabelId);
+						.println("Jenkins master does not have any maven repository for label " + usedId);
 				return;
 			}
-			
-			listener.getLogger().println("Downloading files for label: " + usedLabel.toString());
-			FilePath downloadDest = usedLabel.getDownloadFilePath(workspace, env);
-
-			FilePath downloadZipFile = new FilePath(downloadDest.getParent(), "file.zip");
-
-			if (downloadZipFile.exists()) {
-				listener.getLogger().println(downloadZipFile.getRemote() + " already exists, delete.");
-				boolean deleted = downloadZipFile.delete();
-				if (!deleted) {
-					listener.error("Unable to delete file: " + downloadZipFile.getRemote());
-				}
-			}
-			FilePath archivedFile = usedLabel.getArchiveFilePath(workspace, env);
-
-			FilePath archivedZipFile = usedLabel.getLatestRepoFileArchive(workspace, env);
-
-			if (archivedFile == null || !archivedFile.exists() || archivedZipFile == null
-					|| !archivedZipFile.exists()) {
-				listener.getLogger().println("Jenkins does not have any file with path: " + archivedFile.getRemote());
-				return;
-			}
+			used.setChannel(launcher.getChannel());
 
 			// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 			// Define what should be run on the slave for this build
-			JenkinsSlaveDownloadCallable slaveTask = new JenkinsSlaveDownloadCallable(archivedZipFile, downloadZipFile, downloadDest, workspace/*listener*/);
-
+			JenkinsSlaveDownloadCallable slaveTask = new JenkinsSlaveDownloadCallable(listener, workspace, env, used);
+			String status = slaveTask.call();
 			// Get a "channel" to the build machine and run the task there
-			String status = launcher.getChannel().call(slaveTask);
+			//String status = launcher.getChannel().call(slaveTask);
 			listener.getLogger().println("Jenkins repository slave execution status: " + status);
 		}
 

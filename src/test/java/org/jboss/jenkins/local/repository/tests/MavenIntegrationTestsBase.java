@@ -27,6 +27,7 @@ import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
+import hudson.remoting.Channel;
 import jenkins.model.Jenkins;
 
 /**
@@ -47,6 +48,7 @@ public class MavenIntegrationTestsBase {
 	FreeStyleProject project;
 	final int WAIT_SECS_LIMIT = 10;
 
+	final String testDockerFileName = "test-" + UUID.randomUUID().toString() + ".txt";
 	String testFileName = "test.txt";
 	String testFileDir = "repository/";
 	String tmpUnzippedPath = "/tmp/jenkins/unzipped";
@@ -59,8 +61,8 @@ public class MavenIntegrationTestsBase {
 	public void before() throws IOException, InterruptedException {
 		log.info("Preparing for test");
 		
-		Label.deleteDir(new File(tmpUnzippedPath));
-		Label.deleteDir(new File(tmpArchivePath));
+		Label.deleteDir(new FilePath(Channel.current(), tmpUnzippedPath));
+		Label.deleteDir(new FilePath(Channel.current(), tmpArchivePath));
 		
 		testFileName = "test-" + UUID.randomUUID().toString() + ".txt";
 
@@ -122,7 +124,8 @@ public class MavenIntegrationTestsBase {
 			unzipTest.delete();
 		}
 		unzipTest.mkdirs();
-
+		log.info("Unzip file path: " + unzipTest.getAbsolutePath());
+		log.info("Remote path to unzip to: " + path.getRemote());
 		path.unzip(new FilePath(unzipTest));
 		assertTrue(
 				"Test file does not exists in unzipped directory. Label path: "
@@ -133,8 +136,8 @@ public class MavenIntegrationTestsBase {
 	public ArrayList<FreeStyleBuild> configureBildAndVerify(int buildsCount, String labelD, String labelA)
 			throws IOException, SAXException, InterruptedException, ExecutionException {
 		project.getBuildersList().add(new DownloadMavenRepository(labelD));
-		//project.getBuildersList().add(new ArchiveMavenRepository(labelA));
-		project.getPublishersList().add(new ArchiveMavenRepository(labelA));
+		project.getBuildersList().add(new ArchiveMavenRepository(labelA));
+		//project.getPublishersList().add(new ArchiveMavenRepository(labelA));
 
 		project.save();
 

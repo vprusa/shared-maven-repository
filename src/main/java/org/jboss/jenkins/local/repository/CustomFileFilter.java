@@ -6,6 +6,6 @@ import java.io.Serializable;
 
 public class CustomFileFilter implements FileFilter, Serializable {
 	public boolean accept(File file) {
-		return file.isFile();
+		return true;//file.isFile();
 	}
 }

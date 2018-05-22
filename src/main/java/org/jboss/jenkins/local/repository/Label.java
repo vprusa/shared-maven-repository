@@ -20,6 +20,7 @@ import org.apache.commons.io.IOUtils;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.model.Result;
 import hudson.remoting.Channel;
 import hudson.remoting.VirtualChannel;
 import jenkins.model.Jenkins;
@@ -28,9 +29,6 @@ import net.sf.json.JSONSerializer;
 
 public class Label implements Serializable {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 
 	transient public static boolean GET_LATEST_ARCHIVE = true;
@@ -47,6 +45,15 @@ public class Label implements Serializable {
 	private String id;
 	private String name;
 	private boolean isM2Repo;
+	private Result doNotArchiveIfWorseThen;
+
+	public Result getDoNotArchiveIfWorseThen() {
+		return doNotArchiveIfWorseThen;
+	}
+
+	public void setDoNotArchiveIfFail(Result doNotArchiveIfWorseThen) {
+		this.doNotArchiveIfWorseThen = doNotArchiveIfWorseThen;
+	}
 
 	public boolean isM2Repo() {
 		return isM2Repo;
@@ -56,7 +63,6 @@ public class Label implements Serializable {
 		this.isM2Repo = isM2Repo;
 	}
 
-	// private FilePath latestRepoFileDownload;
 	private FilePath latestRepoFileArchive;
 
 	private String downloadPath;
@@ -73,9 +79,23 @@ public class Label implements Serializable {
 		return archivePath;
 	}
 
+	private VirtualChannel channel;
+
+	public void setChannel(VirtualChannel channel) {
+		this.channel = channel;
+	}
+
+	public VirtualChannel getChannel() {
+		if (channel == null)
+			return channel = Channel.current(); // this.channel;//Channel.current();
+		//Computer.currentComputer().getChannel() 
+		return channel;
+	}
+
 	public void clearFilePathsCache() {
 		archiveFilePath = null;
 		downloadFilePath = null;
+		latestRepoFileArchive = null;
 	}
 
 	// https://wiki.jenkins.io/display/JENKINS/Making+your+plugin+behave+in+distributed+Jenkins#MakingyourpluginbehaveindistributedJenkins-Performanceconsideration
@@ -84,12 +104,13 @@ public class Label implements Serializable {
 			|| Jenkins.getInstance().getRootPath().getRemote() == null ? ""
 					: Jenkins.getInstance().getRootPath().getRemote()); // jenkinsRoot
 
-	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo) {
+	public Label(String id, String name, String downloadPath, String archivePath, boolean isM2Repo, Result doNotArchiveIfWorseThen) {
 		this.name = name;
 		this.id = id;
 		this.downloadPath = downloadPath;
 		this.archivePath = archivePath;
 		this.isM2Repo = isM2Repo;
+		this.doNotArchiveIfWorseThen = doNotArchiveIfWorseThen;
 	}
 
 	public static String decorate(String path, FilePath workspace, EnvVars env) {
@@ -97,7 +118,8 @@ public class Label implements Serializable {
 			return null;
 		}
 
-		String jobWorkspacePath = workspace.getRemote(); // workspace
+		// String jobWorkspacePath = workspace == null ? "": workspace.getRemote(); 
+		String jobWorkspacePath = workspace.getRemote(); 
 
 		for (Entry<String, String> entry : env.entrySet()) {
 			String value = entry.getValue();
@@ -120,21 +142,16 @@ public class Label implements Serializable {
 	public FilePath getDownloadFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getDownloadPath() == null)
 			return null;
-		// return new FilePath(new File(Label.decorate(getDownloadPath(), workspace,
-		// env)));
 		if (downloadFilePath == null)
-			return downloadFilePath = new FilePath(Channel.current(),
-					Label.decorate(getDownloadPath(), workspace, env));
+			return downloadFilePath = new FilePath(getChannel(), Label.decorate(getDownloadPath(), workspace, env));
 		return downloadFilePath;
 	}
 
 	public FilePath getArchiveFilePath(FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 		if (getArchivePath() == null)
 			return null;
-		// return new FilePath(new File(Label.decorate(getArchivePath(), workspace,
-		// env)));
 		if (archiveFilePath == null)
-			return archiveFilePath = new FilePath(Channel.current(), Label.decorate(getArchivePath(), workspace, env));
+			return archiveFilePath = new FilePath(getChannel(), Label.decorate(getArchivePath(), workspace, env));
 		return archiveFilePath;
 	}
 
@@ -145,13 +162,6 @@ public class Label implements Serializable {
 		return latestRepoFileArchive = MasterMavenRepository.getLatestRepo(this, workspace, env);
 	}
 
-	/*
-	 * public FilePath getLatestRepoFileDownload(FilePath workspace) throws
-	 * IOException, InterruptedException { if (latestRepoFileDownload != null &&
-	 * latestRepoFileDownload.exists()) { return latestRepoFileDownload; } return
-	 * latestRepoFileDownload = MasterMavenRepository.getLatestRepo(this, workspace,
-	 * GET_LATEST_DOWNLOAD); }
-	 */
 	public static Label getUsedLabelById(String label) {
 		return Label.getListInstances().stream().filter(l -> l.getId().matches(label)).findAny().orElse(null);
 	}
@@ -256,13 +266,14 @@ public class Label implements Serializable {
 			if (labelsJson.has(key)) {
 				Object obj = labelsJson.get(key);
 				if (obj instanceof String) {
-					l.add(new Label(key, (String) obj, null, null, false));
+					l.add(new Label(key, (String) obj, null, null, false, null));
 				} else if (obj instanceof JSONObject) {
 					JSONObject label = (JSONObject) obj; // labelsJson.getJSONObject(key);
 					l.add(new Label(key, label.getString("name"),
 							label.has("downloadPath") ? label.getString("downloadPath") : null,
 							label.has("archivePath") ? label.getString("archivePath") : null,
-							label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false));
+							label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false,
+							label.has("doNotArchiveIfWorseThen") ? Result.fromString(label.getString("doNotArchiveIfWorseThen")) : null));
 				}
 			}
 
@@ -289,10 +300,10 @@ public class Label implements Serializable {
 				+ getDownloadPath();
 	}
 
-	public static void deleteDir(File folder) {
-		File[] files = folder.listFiles();
+	public static void deleteDir(FilePath folder) throws IOException, InterruptedException {
+		List<FilePath> files = folder.list();
 		if (files != null) { // some JVMs return null for empty dirs
-			for (File f : files) {
+			for (FilePath f : files) {
 				if (f.isDirectory()) {
 					deleteDir(f);
 				} else {
