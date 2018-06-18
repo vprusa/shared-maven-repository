@@ -128,7 +128,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
 				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath + "'}}");
 		Label.saveLabels();
-		Label label = new Label(usedLabel, usedLabel, downloadPath, archivePath, false, null, "Launcher");
+		Label label = new Label(usedLabel, usedLabel, downloadPath, archivePath, false, null, "Local");
 		ArrayList<FreeStyleBuild> builds = configureBildAndVerify(1, usedLabel, usedLabel);
 
 		FreeStyleBuild last = builds.get(0);
@@ -160,7 +160,7 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		new File(archivePath).mkdirs();
 
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
-				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath  + "','isRemoteCall':'Launcher'}}");
+				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath  + "','preferedCall':'{Node{agent1}}'}}");
 		Label.saveLabels();
 		// String name, String nodeDescription, String remoteFS, String numExecutors,
 		// Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy

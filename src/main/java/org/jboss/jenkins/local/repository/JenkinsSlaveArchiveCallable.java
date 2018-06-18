@@ -59,7 +59,9 @@ public class JenkinsSlaveArchiveCallable extends JenkinsSlaveCallableBase
 				// archivedLocalFile.toURI());
 				// try {
 				// try {
-				archivedLocalFile.getParent().mkdirs();
+				if(!archivedLocalFile.getParent().exists() && !archivedLocalFile.getParent().isDirectory()) {
+					archivedLocalFile.getParent().mkdirs();
+				}
 				// } catch (Exception e) {
 				// info(e.toString());
 				// e.printStackTrace();

@@ -15,11 +15,13 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.Computer;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.remoting.Callable;
 import hudson.remoting.Channel;
 import hudson.remoting.VirtualChannel;
 import hudson.slaves.SlaveComputer;
+import jenkins.model.Jenkins;
 
 public class JenkinsSlaveCallableBase implements Callable<String, IOException>, Serializable {
 
@@ -46,30 +48,10 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 	}
 
 	public static String decideAndCall(Label used, Launcher launcher, JenkinsSlaveCallableBase slaveTask,
-			TaskListener listener) throws IOException, InterruptedException {
+			TaskListener listener, FilePath workspace, EnvVars env) throws IOException, InterruptedException {
 
 		try {
-			if (Computer.currentComputer() != null) {
-				listener.getLogger().println("Executing remote call on Computer "
-						+ Computer.currentComputer().getDisplayName()
-						+ ((Computer.currentComputer().getNode() != null
-								&& Computer.currentComputer().getNode().getChannel() != null)
-										? " (" + Computer.currentComputer().getNode().getChannel().toString() + ")"
-										: ""));
-				/*
-				 * listener.getLogger().println("Executing remote call on Computer");
-				 * listener.getLogger().println("getDisplayName():" +
-				 * Computer.currentComputer().getDisplayName());
-				 * listener.getLogger().println("getHostName():" +
-				 * Computer.currentComputer().getHostName().toString()); listener.getLogger()
-				 * .println("getNode().getDisplayName():" +
-				 * Computer.currentComputer().getNode().getDisplayName()); listener.getLogger()
-				 * .println("getNode().getSearchName():" +
-				 * Computer.currentComputer().getNode().getSearchName());
-				 * listener.getLogger().println( "getNode().getChannel():" +
-				 * Computer.currentComputer().getNode().getChannel().toString());
-				 */
-			}
+			infoAboutExecutor(listener, null);
 		} catch (Exception e) {
 			listener.getLogger().println(e.getMessage());
 		}
@@ -87,9 +69,22 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 		} else if (used.getPreferedCall().matches("Launcher")) {
 			listener.getLogger().println("Executing remote call on Launcher");
 			status = launcher.getChannel().call(slaveTask);
-		} else {
-			listener.getLogger().println("Executing remote call on local channel (last call)");
-			status = slaveTask.call();
+		} else if(used.getPreferedCall().startsWith("{")) {
+			if(Jenkins.getInstance() != null) {
+				String assumedNodeName = Label.decorate(used.getPreferedCall(), workspace, env);
+				if(used.getPreferedCall().toLowerCase().startsWith("{node{")) {
+					assumedNodeName = assumedNodeName.replaceAll("\\{.*\\{", "").replaceAll("}}", "");
+				}
+				listener.getLogger().println("Trying remote call to node " + assumedNodeName);
+				Node n = Jenkins.getInstance().getNode(assumedNodeName);
+				if(n!=null) {
+					status = n.createLauncher(listener).decorateFor(n).getChannel().call(slaveTask);
+					return status;
+				}
+				listener.getLogger().println("Node '"+assumedNodeName+"' not found");
+			}
+			listener.getLogger().println("Attempted all possible tagets for prefered call but non matched");
+			status = "Call target not found"; //slaveTask.call();	
 		}
 		return status;
 	}
@@ -146,6 +141,23 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 		};
 		asynchFileSizeProgressLogging.start();
 	}
+	
+	public static void infoAboutExecutor(TaskListener listener, JenkinsSlaveCallableBase logger) throws UnknownHostException {
+		String message = "Executing remote call on Computer " + (Computer.currentComputer() == null || Computer.currentComputer().getDisplayName() == null ? "" : Computer.currentComputer().getDisplayName())
+				+ ((InetAddress.getLocalHost() != null && InetAddress.getLocalHost().getHostAddress() != null)
+						? " with address: " + InetAddress.getLocalHost().getHostAddress().toString()
+						: "")
+				+ ((Computer.currentComputer() != null && Computer.currentComputer().getNode() != null
+						&& Computer.currentComputer().getNode().getChannel() != null)
+								? " and channel (" + Computer.currentComputer().getNode().getChannel().toString() + ")"
+								: "");
+		if(listener != null) {
+			listener.getLogger().println(message);
+		}
+		if(logger != null){
+			logger.info(message);
+		}
+	}
 
 	public void initSlave(String loggerName) {
 		this.workspace = new FilePath(label.getChannel(), workspace.getRemote());
@@ -166,32 +178,10 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 				e.printStackTrace();
 			}
 		} else {
-			ps = listener.getLogger();
 			info("Loggin as java.util.logging.Logger into: " + path);
 		}
 		try {
-
-			info("Executing remote call on Computer " + Computer.currentComputer().getDisplayName()
-					+ ((InetAddress.getLocalHost() != null && InetAddress.getLocalHost().getHostAddress() != null)
-							? " address: " + InetAddress.getLocalHost().getHostAddress().toString()
-							: "")
-					+ ((Computer.currentComputer() != null && Computer.currentComputer().getNode() != null
-							&& Computer.currentComputer().getNode().getChannel() != null)
-									? " (" + Computer.currentComputer().getNode().getChannel().toString() + ")"
-									: ""));
-			/*
-			 * info("Executing remote call on current computer with:");
-			 * info("getDisplayName():" + Computer.currentComputer().getDisplayName());
-			 * info("getHostName():" + Computer.currentComputer().getHostName().toString());
-			 * info("getNode().getDisplayName():" +
-			 * Computer.currentComputer().getNode().getDisplayName());
-			 * info("getNode().getSearchName():" +
-			 * Computer.currentComputer().getNode().getSearchName());
-			 * info("getNode().getChannel():" +
-			 * Computer.currentComputer().getNode().getChannel().toString()); //
-			 * label.setChannel(Computer.currentComputer().getNode().getChannel());
-			 * 
-			 */
+			infoAboutExecutor(null, this);
 		} catch (/* UnknownHostException | */IOException /* | InterruptedException */ e) {
 			e.printStackTrace();
 			info(e.getMessage());

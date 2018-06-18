@@ -71,7 +71,7 @@ public class ArchiveMavenRepository extends Builder implements SimpleBuildStep {
 				return;
 			}
 			listener.getLogger().println("Archive private maven repository");
-
+			
 			if (used != null) {
 
 				listener.getLogger()
@@ -79,21 +79,17 @@ public class ArchiveMavenRepository extends Builder implements SimpleBuildStep {
 			
 				used.setChannel(null);
 
-				// listener.getLogger().println("launcher.getChannel()");
-
 				// label.updateChannel(launcher.getChannel());
 				// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 				// Define what should be run on the slave for this build
 				JenkinsSlaveArchiveCallable slaveTask = new JenkinsSlaveArchiveCallable(workspace, env, listener, used);
-				// Get a "channel" to the build machine and run the task there
-				// String status = launcher.getChannel().call(slaveTask);
 
-				String status = JenkinsSlaveCallableBase.decideAndCall(used, launcher, slaveTask, listener);;
+				String status = JenkinsSlaveCallableBase.decideAndCall(used, launcher, slaveTask, listener, workspace, env);;
 				listener.getLogger().println("Jenkins repository slave execution status: " + status);
 
 				return;
 			}
-			listener.getLogger().println("Files not found");
+			listener.getLogger().println("Noting to do");
 		}
 
 	}

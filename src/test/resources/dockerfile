@@ -3,9 +3,9 @@
 #
 
 FROM jamesdbloom/docker-java8-maven
-
-RUN  mkdir /home/jenkins
-RUN  mkdir /home/jenkins/agent
+# create files if you want to share workspace etc.
+#RUN  mkdir /home/jenkins
+#RUN  mkdir /home/jenkins/agent
 #RUN ip address && wget http://localhost:9090/jenkins/jnlpJars/slave.jar -P /home/jenkins/
 #COPY ./slave.jar /home/jenkins
 # ip address needs to be run for refresh 

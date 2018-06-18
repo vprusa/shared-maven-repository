@@ -63,13 +63,10 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 			}
 			used.setChannel(null);
 
-
 			// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 			// Define what should be run on the slave for this build
 			JenkinsSlaveDownloadCallable slaveTask = new JenkinsSlaveDownloadCallable(listener, workspace, env, used);
-			// Get a "channel" to the build machine and run the task there
-			// String status = launcher.getChannel().call(slaveTask);
-			String status = JenkinsSlaveCallableBase.decideAndCall(used, launcher, slaveTask, listener);;
+			String status = JenkinsSlaveCallableBase.decideAndCall(used, launcher, slaveTask, listener, workspace, env);;
 
 			listener.getLogger().println("Jenkins repository slave execution status: " + status);
 		}

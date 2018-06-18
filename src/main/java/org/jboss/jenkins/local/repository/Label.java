@@ -131,8 +131,8 @@ public class Label implements Serializable {
 		this.preferedCall = remote;
 	}
 
-	public static String decorate(String path, FilePath workspace, EnvVars env) {
-		if (path == null) {
+	public static String decorate(String original, FilePath workspace, EnvVars env) {
+		if (original == null) {
 			return null;
 		}
 
@@ -142,18 +142,18 @@ public class Label implements Serializable {
 		for (Entry<String, String> entry : env.entrySet()) {
 			String value = entry.getValue();
 			String key = entry.getKey();
-			if (path.contains("{^{" + key + "}}")) {
-				path = path.replace("{^{" + key + "}}", value.toUpperCase());
+			if (original.contains("{^{" + key + "}}")) {
+				original = original.replace("{^{" + key + "}}", value.toUpperCase());
 			}
-			if (path.contains("{!{" + key + "}}")) {
-				path = path.replace("{!{" + key + "}}", value.toLowerCase());
+			if (original.contains("{!{" + key + "}}")) {
+				original = original.replace("{!{" + key + "}}", value.toLowerCase());
 			}
-			if (path.contains("{{" + key + "}}")) {
-				path = path.replace("{{" + key + "}}", value);
+			if (original.contains("{{" + key + "}}")) {
+				original = original.replace("{{" + key + "}}", value);
 			}
 		}
 
-		return path.replace("{.{workspace}}", jobWorkspacePath).replace("{{workspace}}", jobWorkspacePath)
+		return original.replace("{.{workspace}}", jobWorkspacePath).replace("{{workspace}}", jobWorkspacePath)
 				.replace("{.{jenkinsRoot}}", jenkinsRootPath).replace("{{jenkinsRoot}}", jenkinsRootPath);
 	}
 
@@ -292,7 +292,7 @@ public class Label implements Serializable {
 							label.has("archivePath") ? label.getString("archivePath") : null,
 							label.has("isM2Repo") ? label.getBoolean("isM2Repo") : false,
 							label.has("doNotArchiveIfWorseThen") ? Result.fromString(label.getString("doNotArchiveIfWorseThen")) : null,
-									label.has("isRemoteCall") ? label.getString("isRemoteCall") : "Local"));
+									label.has("preferedCall") ? label.getString("preferedCall") : "Local"));
 				}
 			}
 
