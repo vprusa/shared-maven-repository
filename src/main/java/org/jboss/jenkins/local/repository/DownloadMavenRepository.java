@@ -62,6 +62,8 @@ public class DownloadMavenRepository extends Builder implements SimpleBuildStep 
 				return;
 			}
 			used.setChannel(null);
+			
+			listener.getLogger().println(" Env: " + build.getEnvVars().toString());
 
 			// https://stackoverflow.com/questions/9279898/can-hudson-slaves-run-plugins
 			// Define what should be run on the slave for this build

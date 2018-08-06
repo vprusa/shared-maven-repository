@@ -159,8 +159,9 @@ public class MavenIntegrationTests extends MavenIntegrationTestsBase {
 		final String archivePath = "/tmp/jenkins/archive/";
 		new File(archivePath).mkdirs();
 
+		//ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath  + "','preferedCall':'{Node{agent1}}'}}");
 		ArchiveMavenRepository.DescriptorImpl.setLabelsS("{'" + usedLabel + "':{ 'name': '" + usedLabel
-				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath  + "','preferedCall':'{Node{agent1}}'}}");
+				+ "','downloadPath':'" + downloadPath + "','archivePath':'" + archivePath  + "','preferedCall':'{Node{{{NODE_NAME}}}}'}}");
 		Label.saveLabels();
 		// String name, String nodeDescription, String remoteFS, String numExecutors,
 		// Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy

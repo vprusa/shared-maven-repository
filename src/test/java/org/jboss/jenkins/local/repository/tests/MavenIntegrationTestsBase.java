@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang.SerializationUtils;
 import org.jboss.jenkins.local.repository.ArchiveMavenRepository;
 import org.jboss.jenkins.local.repository.DownloadMavenRepository;
 import org.jboss.jenkins.local.repository.Label;
@@ -109,6 +110,9 @@ public class MavenIntegrationTestsBase {
 			i++;
 		}
 		log.info("Test waited for job " + i + " seconds");
+		log.info("build.getEnvVars().toString()");
+		log.info(build.getEnvVars().toString());
+		
 		assertFalse("Build did not passed with result: " + build.getResult().toString() + " with expected result: "
 				+ expected.toString(), !build.getResult().isBetterOrEqualTo(expected));
 	}

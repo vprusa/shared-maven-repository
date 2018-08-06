@@ -69,22 +69,22 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 		} else if (used.getPreferedCall().matches("Launcher")) {
 			listener.getLogger().println("Executing remote call on Launcher");
 			status = launcher.getChannel().call(slaveTask);
-		} else if(used.getPreferedCall().startsWith("{")) {
-			if(Jenkins.getInstance() != null) {
+		} else if (used.getPreferedCall().startsWith("{")) {
+			if (Jenkins.getInstance() != null) {
 				String assumedNodeName = Label.decorate(used.getPreferedCall(), workspace, env);
-				if(used.getPreferedCall().toLowerCase().startsWith("{node{")) {
+				if (used.getPreferedCall().toLowerCase().startsWith("{node{")) {
 					assumedNodeName = assumedNodeName.replaceAll("\\{.*\\{", "").replaceAll("}}", "");
 				}
 				listener.getLogger().println("Trying remote call to node " + assumedNodeName);
 				Node n = Jenkins.getInstance().getNode(assumedNodeName);
-				if(n!=null) {
+				if (n != null) {
 					status = n.createLauncher(listener).decorateFor(n).getChannel().call(slaveTask);
 					return status;
 				}
-				listener.getLogger().println("Node '"+assumedNodeName+"' not found");
+				listener.getLogger().println("Node '" + assumedNodeName + "' not found");
 			}
 			listener.getLogger().println("Attempted all possible tagets for prefered call but non matched");
-			status = "Call target not found"; //slaveTask.call();	
+			status = "Call target not found"; // slaveTask.call();
 		}
 		return status;
 	}
@@ -141,20 +141,25 @@ public class JenkinsSlaveCallableBase implements Callable<String, IOException>, 
 		};
 		asynchFileSizeProgressLogging.start();
 	}
-	
-	public static void infoAboutExecutor(TaskListener listener, JenkinsSlaveCallableBase logger) throws UnknownHostException {
-		String message = "Executing remote call on Computer " + (Computer.currentComputer() == null || Computer.currentComputer().getDisplayName() == null ? "" : Computer.currentComputer().getDisplayName())
+
+	public static void infoAboutExecutor(TaskListener listener, JenkinsSlaveCallableBase logger)
+			throws UnknownHostException {
+		String message = "Executing remote call on Computer "
+				+ (Computer.currentComputer() == null || Computer.currentComputer().getDisplayName() == null ? ""
+						: Computer.currentComputer().getDisplayName())
 				+ ((InetAddress.getLocalHost() != null && InetAddress.getLocalHost().getHostAddress() != null)
 						? " with address: " + InetAddress.getLocalHost().getHostAddress().toString()
 						: "")
 				+ ((Computer.currentComputer() != null && Computer.currentComputer().getNode() != null
 						&& Computer.currentComputer().getNode().getChannel() != null)
 								? " and channel (" + Computer.currentComputer().getNode().getChannel().toString() + ")"
-								: "");
-		if(listener != null) {
+								: "")
+				+ ((logger != null && logger.env != null && logger.env.size() != 0 && logger.env.entrySet() != null
+						&& !logger.env.entrySet().isEmpty()) ? " Env: " + logger.env.entrySet().toString() : "");
+		if (listener != null) {
 			listener.getLogger().println(message);
 		}
-		if(logger != null){
+		if (logger != null) {
 			logger.info(message);
 		}
 	}
